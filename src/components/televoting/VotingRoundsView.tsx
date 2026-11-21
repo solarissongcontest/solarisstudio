@@ -48,11 +48,18 @@ export function VotingRoundsView() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [draftRoundId, setDraftRoundId] = useState<string | null>(null);
   const [editing, setEditing] = useState<MergedAdminRound | null>(null);
   const [editingName, setEditingName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<MergedAdminRound | null>(null);
   const [pendingStatus, setPendingStatus] = useState<PendingRoundStatusChange | null>(null);
   const [statusBusy, setStatusBusy] = useState<string | null>(null);
+
+  function openCreateDialog() {
+    setNewName("");
+    setDraftRoundId(crypto.randomUUID());
+    setCreateOpen(true);
+  }
 
   const { data: pageData, isLoading, error } = useQuery({
     queryKey: ["merged-televoting-rounds-page", editionId],
@@ -69,14 +76,19 @@ export function VotingRoundsView() {
     queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds-page", editionId] });
 
   const createMutation = useMutation({
-    mutationFn: () => createRound({ data: { editionId: remoteEditionId, name: newName.trim() } }),
-    onSuccess: async (result) => {
+    mutationFn: () => {
+      if (!editionId || !draftRoundId) throw new Error("Select the exact edition before creating a round");
+      return createRound({ data: { editionId, name: newName.trim(), roundId: draftRoundId } });
+    },
+    onSuccess: async () => {
       setNewName("");
+      setDraftRoundId(null);
       setCreateOpen(false);
-      if (result.sync_warning) toast.warning(`Round created. ${result.sync_warning}`);
-      else toast.success("Voting round created as draft");
+      toast.success("Draft round created. Configure its entries before opening voting.");
       await refresh();
     },
+    // Preserve draftRoundId across an uncertain response so a retry recovers
+    // the same creation instead of inserting a second round.
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Round could not be created"),
   });
 
@@ -173,7 +185,7 @@ export function VotingRoundsView() {
           <button
             type="button"
             disabled={!remoteEditionId}
-            onClick={() => setCreateOpen(true)}
+            onClick={openCreateDialog}
             className="admin-action-primary"
           >
             <Plus className="size-4" /> New round
@@ -288,7 +300,7 @@ export function VotingRoundsView() {
             icon={Radio}
             title="No voting rounds yet"
             description={edition ? `Create a draft round for ${edition.name}, configure its entries, then open voting when the line-up is ready.` : "Create a draft round, configure its entries, then open voting when the line-up is ready."}
-            action={<button type="button" disabled={!remoteEditionId} onClick={() => setCreateOpen(true)} className="admin-action-primary"><Plus className="size-4" /> Create round</button>}
+            action={<button type="button" disabled={!remoteEditionId} onClick={openCreateDialog} className="admin-action-primary"><Plus className="size-4" /> Create round</button>}
           />
         </AdminCard>
       )}
@@ -298,7 +310,7 @@ export function VotingRoundsView() {
           <label className="block"><span className="text-xs font-semibold">Round name</span><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Grand Final" className="mt-2 min-h-11" /></label>
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
             <button type="button" disabled={createMutation.isPending} onClick={() => setCreateOpen(false)} className="admin-action-secondary">Cancel</button>
-            <button type="button" disabled={!remoteEditionId || !newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary w-full">{createMutation.isPending ? "Creating…" : "Create draft round"}</button>
+            <button type="button" disabled={!remoteEditionId || !draftRoundId || !newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary w-full">{createMutation.isPending ? "Creating…" : "Create draft round"}</button>
           </div>
         </div>
       </AdminSheet>
