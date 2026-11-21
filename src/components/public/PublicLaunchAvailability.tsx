@@ -6,6 +6,7 @@ import { LIMITED_PUBLIC_LAUNCH, PUBLIC_LAUNCH_FLAGS, type PublicLaunchFlags } fr
 import { PublicLaunchContext } from "@/lib/public-launch-context";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase } from "@/integrations/supabase/client";
+import { clearAdminPagePreviewSession } from "@/lib/admin-page-preview-client";
 
 /** Shares four existing, caller-evaluated flags across all Public consumers.
  * No cohort lists, local tester override, new flag, polling or mutation API.
@@ -76,11 +77,17 @@ function LimitedPublicLaunchAvailabilityProvider({ children }: { children: React
   const [actor, setActor] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
+    let authChanged = false;
     void supabase.auth.getSession().then(({ data }) => {
-      if (alive) setActor(data.session?.user.id ?? null);
-    }).catch(() => { if (alive) setActor(null); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (alive) setActor(session?.user.id ?? null);
+      if (alive && !authChanged) setActor(data.session?.user.id ?? null);
+    }).catch(() => { if (alive && !authChanged) setActor(null); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      authChanged = true;
+      if (!alive) return;
+      setActor(session?.user.id ?? null);
+      // Logout can happen on a preview page after AdminShell has unmounted.
+      // Clear the HttpOnly discovery cookie there too; no JWT is sent.
+      if (event === "SIGNED_OUT") void clearAdminPagePreviewSession().catch(() => undefined);
     });
     return () => { alive = false; subscription.unsubscribe(); };
   }, []);
@@ -93,13 +100,14 @@ function LimitedPublicLaunchAvailabilityProvider({ children }: { children: React
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
-  // Retain a confirmed Organizer view during same-actor background checks.
-  // A failed/revoked response or an account switch immediately withdraws it.
-  const adminPreview = Boolean(actor) && organizer.isSuccess && organizer.data === true;
+  // Preview is privileged discovery, not an ordinary same-actor public flag.
+  // Withdraw the grant while revalidating rather than trusting cached roles.
+  const adminPreview = Boolean(actor) && organizer.isSuccess &&
+    !organizer.isFetching && !organizer.isError && organizer.data === true;
   return (
     <PublicLaunchContext.Provider value={{
       active: true, flags: {}, adminPreview,
-      checking: Boolean(actor) && organizer.isPending,
+      checking: Boolean(actor) && (organizer.isPending || organizer.isFetching),
       error: Boolean(actor) && organizer.isError,
       retry: () => { void organizer.refetch(); },
     }}>
