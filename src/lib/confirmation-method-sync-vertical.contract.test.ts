@@ -17,7 +17,11 @@ describe("Confirmation / Entry method transitions and post-review recovery", () 
     expect(sync).not.toContain("syncConfirmationSnapshotToSolarisInternal(data.snapshot)");
     expect(route).toContain("submissionId: detail.id");
     expect(route).toContain("editionId: detail.edition?.id");
-    expect(restore).toContain("data: { submissionId }");
+    expect(restore).toContain("data: { submissionId, editionId }");
+    expect(sync).toContain("An exact Organizer edition ID is required.");
+    expect(sync).toContain('actorDb.rpc("studio2_access_allowed"');
+    expect(sync).toContain('p_capability: "confirmation.manage"');
+    expect(sync).toContain("snapshot.edition?.id !== data.editionId");
     expect(restore).not.toContain("data: { snapshot:");
   });
 
