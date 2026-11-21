@@ -325,6 +325,26 @@ begin
     if v_identity is null then
       raise exception 'DNV requires a voting country or entity' using errcode='22023';end if;
     perform private.v3_jury_lock_country(new.show_id,v_identity);
+    -- The status mutation shares the same country/show lock as BOTH writers.
+    -- A committed account submission (or a legacy accepted manual vote) must
+    -- never be relabelled absent, including when the status row uses voter_id
+    -- instead of voter_country_id.
+    if exists (
+      select 1 from public.jury_ballot_submissions b
+      where b.show_id = new.show_id and b.voter_country_id = v_identity
+    ) or exists (
+      select 1 from public.jury_votes j
+      where j.show_id = new.show_id and (
+        j.voter_country_id = v_identity
+        or exists (select 1 from public.voters v
+          where v.id = j.voter_id and v.country_id = v_identity)
+        or exists (select 1 from public.contest_entities ce
+          where ce.id = j.voter_entity_id and ce.country_id = v_identity)
+      )
+    ) then
+      raise exception 'Cannot mark did-not-vote after Jury scores have been accepted'
+        using errcode='23514';
+    end if;
     if exists(select 1 from private.v3_jury_manual_scores d
       where d.show_id=new.show_id and d.voter_identity=v_identity) then
       raise exception 'Cannot mark did-not-vote while Organizer has recorded Jury scores'
