@@ -685,11 +685,32 @@ export async function syncConfirmationSubmissionToSolarisInternal(
   return syncConfirmationSnapshotToSolarisInternal(snapshot);
 }
 
+/**
+ * Organizer recovery always reads the current authoritative Submission/Entry
+ * rows. A browser response snapshot is never mutation authority: it may be
+ * stale, from another edition, or forged.
+ */
 export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST" })
-  .inputValidator((data: { snapshot: unknown }) => ({
-    snapshot: assertSnapshot(data?.snapshot),
-  }))
+  .inputValidator((data: { submissionId?: unknown; editionId?: unknown }) => {
+    const submissionId = typeof data?.submissionId === "string" ? data.submissionId.trim() : "";
+    const editionId = typeof data?.editionId === "string" ? data.editionId.trim() : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(submissionId)) {
+      throw new Error("A valid Confirmation submission ID is required.");
+    }
+    if (editionId && !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(editionId)) {
+      throw new Error("Invalid Organizer edition scope.");
+    }
+    return { submissionId, editionId };
+  })
   .handler(async ({ data }) => {
     await requireSolarisOrganizerServer();
-    return syncConfirmationSnapshotToSolarisInternal(data.snapshot);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const snapshot = await loadConfirmationSnapshotForSolarisSync(
+      supabaseAdmin as any,
+      data.submissionId,
+    );
+    if (data.editionId && snapshot.edition?.id !== data.editionId) {
+      throw new Error("Confirmation no longer belongs to the selected Organizer edition.");
+    }
+    return syncConfirmationSnapshotToSolarisInternal(snapshot);
   });
