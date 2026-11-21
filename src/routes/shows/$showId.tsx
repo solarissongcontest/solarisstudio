@@ -46,6 +46,7 @@ import { useNotificationPreferences } from "@/lib/engagement-data";
 import { entityDisplayMap } from "@/lib/entities";
 import {
   participationStatus,
+  isCompetingParticipant,
   participationStatusLabel,
   type ParticipationAwareParticipant,
 } from "@/lib/participation-status";
@@ -337,7 +338,7 @@ function ShowPage() {
   }, [scoreableResults, multiRoundTelevote, voting.televoteRounds]);
 
   const publicLineupParticipants = useMemo(() => {
-    const rows = [...participantRows];
+    const rows = participantRows.filter(isCompetingParticipant);
     const byCountryName = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
       (displayMap.get(a.country_id)?.name ?? a.country_id).localeCompare(
         displayMap.get(b.country_id)?.name ?? b.country_id,
@@ -614,7 +615,7 @@ function ShowPage() {
           <Panel className="mb-5">
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               {publication.participants && (
-                <StatTile label="Entries" value={participants?.length ?? 0} />
+                <StatTile label="Entries" value={participantRows.filter(isCompetingParticipant).length} />
               )}
               {publication.results && <StatTile label="Results" value={standings.length} />}
               {showJuryResults && <StatTile label="Jury points" value={juryTotal ?? 0} />}
