@@ -1,4 +1,15 @@
-import { Archive, Compass, Search, Sparkles } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
+import {
+  ArrowRight, Archive, BookOpen, CalendarDays, Compass, Flag, Gamepad2,
+  LayoutGrid, Music2, Newspaper, RadioTower, ScrollText, Search, Sparkles, Trophy,
+  type LucideIcon,
+} from "lucide-react";
+
+import { V3ExploreEditorialLink } from "./V3ExploreEditorialLink";
+import { WorldV3ExploreEntry } from "@/components/world/WorldExploreEntry";
+import "@/styles/v3-explore-editorial.css";
 
 import type {
   V3EditionExperience,
@@ -19,6 +30,7 @@ import {
 export type V3ExploreScreenProps = {
   projection: V3ExploreRootProjection;
   onOpenSearch: () => void;
+  showWorld?: boolean;
 };
 
 const COLLECTION_DESCRIPTIONS: Record<V3ExploreCollection["key"], string> = {
@@ -28,12 +40,33 @@ const COLLECTION_DESCRIPTIONS: Record<V3ExploreCollection["key"], string> = {
   stories: "Editorial stories and important Solaris moments",
 };
 
+const DISCOVERY_ICONS: Record<V3ExploreCollection["key"], LucideIcon> = {
+  countries: Flag,
+  "songs-and-artists": Music2,
+  shows: RadioTower,
+  stories: Newspaper,
+};
+
+const DESTINATION_ICONS: Record<string, LucideIcon> = {
+  editions: CalendarDays,
+  archive: Archive,
+  reference: BookOpen,
+  rules: ScrollText,
+  results: Trophy,
+  live: RadioTower,
+  "archive-games": Gamepad2,
+  "advanced-discovery": LayoutGrid,
+  tools: LayoutGrid,
+  predictions: Sparkles,
+};
+
 const MORE_DESCRIPTIONS: Record<string, string> = {
   live: "Follow the current public show in Live Mode",
   results: "Open official Results, records and deeper result tools",
   rules: "Official rules, guidance, interpretations and rule history",
   "archive-games": "Play public experiences built from Solaris archive history",
-  "advanced-discovery": "Browse the site directory and specialist public discovery tools",
+  "advanced-discovery": "Browse all Solaris public destinations by area",
+  tools: "Explore public comparison, discovery and archive tools",
 };
 
 function experiencePresentation(experience: V3EditionExperience): {
@@ -69,81 +102,79 @@ function itemCountLabel(count: number): string {
 function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
   const status = experiencePresentation(edition.experience);
   const meta = editionMeta(edition);
+  const { allowsReleased } = usePublicLaunchAvailability();
+  const [failedArtwork, setFailedArtwork] = useState<string | null>(null);
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const visibleArtwork = edition.artworkUrl && edition.artworkUrl !== failedArtwork
+    ? edition.artworkUrl : null;
+  const visibleLogo = edition.logoUrl && edition.logoUrl !== failedLogo
+    ? edition.logoUrl : null;
 
   return (
-    <V3Surface level="raised" className="overflow-hidden">
-      {edition.artworkUrl ? (
-        <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
-          <img
-            src={edition.artworkUrl}
-            alt=""
-            className="block h-auto max-h-[34rem] w-full object-contain"
-            loading="lazy"
-          />
-          <div
-            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent"
-            aria-hidden="true"
+    <article className="v3-explore-feature" data-has-artwork={visibleArtwork ? "true" : "false"}>
+      <div className="v3-explore-feature__visual">
+        <div className="v3-explore-feature__media" aria-hidden="true">
+          {visibleArtwork ? (
+            <img src={visibleArtwork} alt="" decoding="async" loading="eager"
+              fetchPriority="high" onError={() => setFailedArtwork(visibleArtwork)} />
+          ) : (
+            <span className="v3-explore-feature__fallback" />
+          )}
+        </div>
+        <div className="v3-explore-feature__fade" aria-hidden="true" />
+        <div className="v3-explore-feature__content">
+          <div className="v3-explore-feature__eyebrow">
+            <span>Current edition</span>
+            <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
+          </div>
+          {!visibleArtwork && visibleLogo ? (
+            <img className="v3-explore-feature__logo" src={visibleLogo}
+              alt={`${edition.name} logo`} loading="lazy" decoding="async"
+              onError={() => setFailedLogo(visibleLogo)} />
+          ) : null}
+          <h2>{edition.name}</h2>
+          {meta ? <p className="v3-explore-feature__meta">{meta}</p> : null}
+          {allowsReleased(edition.href) ? (
+            <Link to={edition.href as any} className="v3-explore-feature__primary">
+              Discover edition <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          ) : null}
+        </div>
+      </div>
+
+      {edition.experience === "live" && edition.liveHref && allowsReleased(edition.liveHref) ? (
+        <div className="v3-explore-feature__related" data-v3-explore-live-action="">
+          <V3ActionCard
+            title="Open Live Mode"
+            description="Follow the current public show as it happens"
+            tone="urgent"
+            to={edition.liveHref}
           />
         </div>
       ) : null}
 
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="v3-kicker">Current edition</p>
-            <h2 className="mt-2 text-[1.65rem] font-bold leading-[1.02] tracking-[-0.045em]">
-              {edition.name}
-            </h2>
-            {meta ? <p className="mt-2 text-xs leading-5 text-white/52">{meta}</p> : null}
-          </div>
-          <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
-        </div>
-
-        {edition.experience === "live" && edition.liveHref ? (
-          <div className="mt-4" data-v3-explore-live-action="">
-            <V3ActionCard
-              title="Open Live Mode"
-              description="Follow the current public show as it happens"
-              tone="urgent"
-              to={edition.liveHref}
-            />
-          </div>
-        ) : null}
-
-        <div className={edition.experience === "live" && edition.liveHref ? "mt-3" : "mt-4"}>
+      {edition.nextEvent && allowsReleased(edition.nextEvent.href) ? (
+        <div className="v3-explore-feature__related">
           <V3ActionCard
-            title="Open edition"
-            description="Participants, published entries, schedule, stories and official result availability"
+            title={edition.nextEvent.title}
+            description={edition.nextEvent.startsAt ?? "Time to be announced"}
             tone="neutral"
-            to={edition.href}
+            to={edition.nextEvent.href}
           />
         </div>
-
-        {edition.nextEvent ? (
-          <div className="mt-3">
-            <V3ActionCard
-              title={edition.nextEvent.title}
-              description={edition.nextEvent.startsAt ?? "Time to be announced"}
-              tone="neutral"
-              to={edition.nextEvent.href}
-            />
-          </div>
-        ) : null}
-      </div>
-    </V3Surface>
+      ) : null}
+    </article>
   );
 }
 
 function ArchiveEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
   const meta = editionMeta(edition);
-  const resultLabel = edition.resultsAvailable ? "Official results available" : "Explore edition";
-
   return (
-    <V3ActionCard
+    <V3ExploreEditorialLink
+      href={edition.href}
       title={edition.name}
-      description={[meta, resultLabel].filter(Boolean).join(" · ")}
-      tone="neutral"
-      to={edition.href}
+      description={[meta, edition.resultsAvailable ? "Official results available" : "Explore edition"].filter(Boolean).join(" · ")}
+      icon={Archive}
     />
   );
 }
@@ -155,9 +186,16 @@ function ArchiveEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
  * interaction. This screen only renders V3 Explore projections and therefore
  * cannot become a second data, Search or Results authority.
  */
-export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenProps) {
+export function V3ExploreScreen({ projection, onOpenSearch, showWorld = false }: V3ExploreScreenProps) {
+  // P9 has no dedicated published artist/song identity route yet. Do not send
+  // a Songs & Artists discovery tile to Edition Overview as a fake catalogue.
+  // When a real destination is wired, this collection appears automatically.
+  const discoverableCollections = projection.discover.filter(
+    (collection) => collection.key !== "songs-and-artists" || !/^\/editions(?:\/|$)/.test(collection.href),
+  );
   return (
     <V3Screen>
+      <div className="v3-explore-editorial">
       <V3ScreenHeader
         kicker="Explore Solaris"
         title="Discover the contest"
@@ -188,28 +226,30 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
         )}
       </V3Section>
 
-      <V3Section title="Discover" meta={`${projection.discover.length} collections`}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {projection.discover.map((collection) => (
-            <V3ActionCard
+      <V3Section title="Discover" meta={`${discoverableCollections.length} collections`}>
+        <div className="v3-explore-editorial-list">
+          {discoverableCollections.map((collection) => (
+            <V3ExploreEditorialLink
               key={collection.key}
               title={collection.label}
-              description={`${COLLECTION_DESCRIPTIONS[collection.key]} · ${itemCountLabel(collection.publicItemCount)}`}
-              icon={Compass}
-              tone="neutral"
-              to={collection.href}
+              description={COLLECTION_DESCRIPTIONS[collection.key]}
+              icon={DISCOVERY_ICONS[collection.key]}
+              meta={itemCountLabel(collection.publicItemCount)}
+              href={collection.href}
             />
           ))}
         </div>
       </V3Section>
 
+      <WorldV3ExploreEntry enabled={showWorld} />
+
       <V3Section
         title="Archive"
         meta={projection.archive.editions.length ? `${projection.archive.editions.length} editions` : undefined}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="v3-explore-editorial-list">
           {projection.archive.links.map((link) => (
-            <V3ActionCard
+            <V3ExploreEditorialLink
               key={link.key}
               title={link.label}
               description={
@@ -217,15 +257,14 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
                   ? "Browse the Solaris edition archive"
                   : `Open the Solaris ${link.label.toLowerCase()}`
               }
-              icon={Archive}
-              tone="neutral"
-              to={link.href}
+              icon={DESTINATION_ICONS[link.key] ?? BookOpen}
+              href={link.href}
             />
           ))}
         </div>
 
         {projection.archive.editions.length ? (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="v3-explore-editorial-list mt-5">
             {projection.archive.editions.slice(0, 4).map((edition) => (
               <ArchiveEditionCard key={edition.id} edition={edition} />
             ))}
@@ -235,22 +274,22 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
 
       {projection.more.length ? (
         <V3Section title="More Solaris">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="v3-explore-editorial-list">
             {projection.more.map((link) => (
-              <V3ActionCard
+              <V3ExploreEditorialLink
                 key={link.key}
                 title={link.label}
                 description={
                   MORE_DESCRIPTIONS[link.key] ?? "Open an additional Solaris discovery experience"
                 }
-                icon={Sparkles}
-                tone="neutral"
-                to={link.href}
+                icon={DESTINATION_ICONS[link.key] ?? Compass}
+                href={link.href}
               />
             ))}
           </div>
         </V3Section>
       ) : null}
+      </div>
     </V3Screen>
   );
 }

@@ -12,12 +12,21 @@ const HIDDEN_ROUTES = [
   "/confirmations/next-in-line", "/televoting/results",
 ] as const;
 
-test("only the approved public and participation routes render", async ({ page }) => {
+test("only the approved public and participation routes render", async ({ context }) => {
+  // Each destination is an independent direct-load contract. Reusing one
+  // WebKit document for seven full navigations can leave its old service
+  // worker / page process alive and produce browser-internal navigation
+  // errors unrelated to these routes. Keep every render and HTTP assertion.
   for (const route of OPEN_ROUTES) {
-    const response = await page.goto(route, { waitUntil: "domcontentloaded" });
-    expect(response?.status(), route).toBe(200);
-    await expect(page.locator('[data-solaris-maintenance="true"]')).toHaveCount(0);
-    await expect(page.locator("body")).not.toContainText("This page is not available yet");
+    const routePage = await context.newPage();
+    try {
+      const response = await routePage.goto(route, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), route).toBe(200);
+      await expect(routePage.locator('[data-solaris-maintenance="true"]')).toHaveCount(0);
+      await expect(routePage.locator("body")).not.toContainText("This page is not available yet");
+    } finally {
+      await routePage.close();
+    }
   }
 });
 
@@ -31,19 +40,33 @@ test("hidden public URLs fail closed at the Worker before app SSR", async ({ req
   }
 });
 
-test("public home navigation does not advertise unpublished areas", async ({ page }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  const nav = page.locator('nav[aria-label="Main navigation"], nav[aria-label="Primary navigation"]');
-  const links = await nav.locator("a[href]").evaluateAll((items) =>
-    items.map((item) => new URL((item as HTMLAnchorElement).href).pathname),
-  );
-  expect(links).not.toContain("/explore");
-  expect(links).not.toContain("/results");
-  expect(links).not.toContain("/my-solaris");
-  expect(links).not.toContain("/me");
-  // A direct refreshed browser navigation must also respect the server gate.
-  const blocked = await page.goto("/results", { waitUntil: "domcontentloaded" });
-  expect(blocked?.status()).toBe(404);
+test("public home navigation does not advertise unpublished areas", async ({ context }) => {
+  // Independent documents are essential for the installed WebKit project.
+  // A second full navigation on the Home document can fail inside WebKit
+  // before receiving any HTTP response. Do not weaken either release gate.
+  const homePage = await context.newPage();
+  try {
+    await homePage.goto("/", { waitUntil: "domcontentloaded" });
+    const nav = homePage.locator('nav[aria-label="Main navigation"], nav[aria-label="Primary navigation"]');
+    const links = await nav.locator("a[href]").evaluateAll((items) =>
+      items.map((item) => new URL((item as HTMLAnchorElement).href).pathname),
+    );
+    expect(links).not.toContain("/explore");
+    expect(links).not.toContain("/results");
+    expect(links).not.toContain("/my-solaris");
+    expect(links).not.toContain("/me");
+  } finally {
+    await homePage.close();
+  }
+
+  // This is still a REAL browser direct load, not a mocked/request-only 404.
+  const blockedPage = await context.newPage();
+  try {
+    const blocked = await blockedPage.goto("/results", { waitUntil: "domcontentloaded" });
+    expect(blocked?.status()).toBe(404);
+  } finally {
+    await blockedPage.close();
+  }
 });
 
 test("installed app launch never restores a hidden destination", async ({ page }, testInfo) => {

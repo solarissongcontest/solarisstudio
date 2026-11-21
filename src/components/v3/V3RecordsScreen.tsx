@@ -54,11 +54,11 @@ export function V3RecordsScreen({
   );
 
   return (
-    <V3Screen>
+    <V3Screen className="v3-editorial-records">
       <V3ScreenHeader
         kicker="Hall of records"
         title="Records"
-        description="The extreme, impressive and occasionally unfortunate corners of published SSC history, with ties kept intact."
+        description="The biggest achievements in SSC history."
         editorial
       />
 
@@ -88,7 +88,7 @@ export function V3RecordsScreen({
         </V3Surface>
       ) : null}
 
-      <V3Surface level="raised" className="p-5">
+      <V3Surface className="v3-records-coverage p-5">
         <p className="v3-kicker">Archive coverage</p>
         <p className="mt-2 text-sm leading-6 text-white/62">
           These records currently use {archivedFinalEditions} edition
@@ -165,7 +165,7 @@ function RecordCard({ record }: { record: V3Record }) {
   const remainingHolders = record.holders.slice(8);
 
   return (
-    <V3Surface level="raised" className="flex min-h-64 min-w-0 flex-col p-4 sm:p-5">
+    <V3Surface level="raised" className="v3-record-editorial-card flex min-h-64 min-w-0 flex-col p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="v3-kicker">{CATEGORY_LABELS[record.category]}</p>

@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parsePublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
 import { Archive } from "lucide-react";
 
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 
 export const Route = createFileRoute("/archive/")({
+  validateSearch: parsePublicDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "Archive — Solaris Studio" },
@@ -19,41 +21,47 @@ export const Route = createFileRoute("/archive/")({
   component: ArchiveRootPage,
 });
 
-// A navigation catalogue, never a second archive projection or a public read
-// of unpublished entry, voting, or Organizer records.
+// Navigation only: archive entities and publication remain with their canonical
+// owners. A dedicated Songs/Artists catalogue must not be invented by duplicating
+// Reference; broader credit search appears only after its own approved rollout.
 const ARCHIVE_DESTINATIONS = [
-  { title: "Editions", description: "Browse contest editions and their published historical context.", to: "/editions", group: "history" },
-  { title: "Countries", description: "Follow country identities, entries, results and participation history.", to: "/countries", group: "history" },
-  { title: "Songs & artists", description: "Find already-revealed songs and artists in published Solaris Reference records.", to: "/encyclopedia", group: "history" },
-  { title: "Shows", description: "Open published semi-finals, finals and other historical show records.", to: "/shows", group: "history" },
-  { title: "Stories", description: "Read current and historical stories already released to the public.", to: "/stories", group: "history" },
-  { title: "Records", description: "Explore official all-time records and published contest outcomes in Results.", to: "/records", group: "history" },
-  { title: "Reference", description: "Search publication-safe Solaris history across connected public entities.", to: "/encyclopedia", group: "reference" },
-  { title: "Archive Games", description: "Play retained historical games without changing official contest truth.", to: "/archive-games", group: "reference" },
+  { title: "Editions", description: "Browse published contest editions in their original historical context.", to: "/editions", group: "contests", aliases: ["ssc", "contests", "years"] },
+  { title: "Shows", description: "Find published semi-finals, finals and official broadcast history.", to: "/shows", group: "contests", aliases: ["broadcasts", "finals", "schedule"] },
+  { title: "Countries", description: "Follow national participation, published entries and delegation history.", to: "/countries", group: "countries-stories", aliases: ["nations", "delegations", "entries"] },
+  { title: "Stories", description: "Read edition stories and past moments that have been released publicly.", to: "/stories", group: "countries-stories", aliases: ["timeline", "moments", "history"] },
+  { title: "Wiki & Reference", description: "Read published country articles. Broader contest Reference opens here when its rollout is enabled.", to: "/wiki", group: "reference-results", aliases: ["wiki", "encyclopedia", "country articles", "knowledge"] },
+  { title: "Records", description: "Open official all-time records and historical results in Results.", to: "/records", group: "reference-results", aliases: ["results", "rankings", "winners"] },
+  { title: "Archive Games", description: "Play retained historical experiences built from public contest history.", to: "/archive-games", group: "reference-results", aliases: ["games", "play", "history"] },
 ] as const;
 
-const GROUPS: V3DirectoryGroup[] = [
-  {
-    id: "history", label: "Published history",
-    items: ARCHIVE_DESTINATIONS.filter((item) => item.group === "history").map((item) => ({
-      id: item.to, title: item.title, description: item.description, to: item.to,
-    })),
-  },
-  {
-    id: "reference", label: "Reference and games",
-    items: ARCHIVE_DESTINATIONS.filter((item) => item.group === "reference").map((item) => ({
-      id: item.to, title: item.title, description: item.description, to: item.to,
-    })),
-  },
-];
+const ARCHIVE_SECTIONS = [
+  { id: "contests", label: "Contests and broadcasts", description: "Follow the published SSC timeline and the shows in each edition." },
+  { id: "countries-stories", label: "Countries and stories", description: "Explore national participation and the moments recorded around it." },
+  { id: "reference-results", label: "Reference and records", description: "Find public reference knowledge and official result history in their respective sections." },
+] as const;
+
+const GROUPS: V3DirectoryGroup[] = ARCHIVE_SECTIONS.map(({ id, label, description }) => ({
+  id,
+  label,
+  description,
+  items: ARCHIVE_DESTINATIONS.filter((item) => item.group === id).map((item) => ({
+    id: item.to, title: item.title, description: item.description,
+    to: item.to, aliases: item.aliases,
+  })),
+}));
 
 function ArchiveRootPage() {
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   return (
     <V3DirectoryFamilyIndex
+      urlSearch={urlSearch}
+      onUrlSearchChange={(next) => { void navigate({ search: next, replace: true }); }}
+      variant="archive"
       title="Archive"
       eyebrow="HISTORICAL SOLARIS"
-      intro="Published Solaris history, kept in its original contest context."
-      browserIntro="Explore published SSC history in its original edition and time context."
+      intro="Read the contest by edition, country and subject. Only published history appears here."
+      browserIntro="Browse published editions, national histories and official archive subjects."
       searchLabel="Search archive"
       searchPlaceholder="Search archive subjects…"
       scopeLabel="All topics"

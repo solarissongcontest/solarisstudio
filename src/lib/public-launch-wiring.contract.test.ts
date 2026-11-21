@@ -24,11 +24,13 @@ describe("soft-launch entry-point integration", () => {
       "src/components/public/PublicMobileSectionNav.tsx",
       "src/components/public/PublicSiteNavigation.tsx",
       "src/components/v3/V3DirectoryFamilyIndex.tsx",
-      "src/routes/explore/index.tsx",
     ]) {
       expect(source(path)).toContain("usePublicLaunchAvailability");
       expect(source(path)).toContain("allows(item.to)");
     }
+    // Explore uses the stricter effective-release policy so maintenance and
+    // temporary launch restrictions cannot leave dead discovery links.
+    expect(source("src/routes/explore/index.tsx")).toContain("allowsReleased(item.to)");
     expect(source("src/components/app/AppExplorePersonalized.tsx")).toContain("allows(item.path)");
     const search = source("src/components/public/PublicCommandPalette.tsx");
     expect(
@@ -54,7 +56,14 @@ describe("soft-launch entry-point integration", () => {
     expect(provider).toContain("flags.isFetching");
     expect(provider).not.toContain("localStorage");
     expect(provider).not.toContain("refetchInterval");
-    expect(provider).not.toContain("isOrganizer");
+    // Keep the public flag evaluation independent of Organizer role, while
+    // allowing the separately authenticated limited-launch preview branch.
+    const flagDriven = provider.slice(
+      provider.indexOf("export function FlagDrivenPublicLaunchAvailabilityProvider"),
+      provider.indexOf("/** Limited public launch remains closed by default."),
+    );
+    expect(flagDriven).not.toContain("isOrganizer");
+    expect(provider).toContain("hasSolarisOrganizerAccess(actor!)");
   });
   it("holds Prediction League behind the restricted launch even when the old optional flag is enabled", () => {
     expect(LIMITED_PUBLIC_LAUNCH).toBe(true);

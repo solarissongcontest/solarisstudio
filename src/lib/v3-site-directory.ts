@@ -8,6 +8,7 @@ import {
   type PublicArea,
   type PublicDestination,
 } from "@/lib/public-navigation";
+import { matchesPublicDirectorySearch } from "./v3-public-directory-search";
 
 export const SITE_DIRECTORY_AREA_ORDER: readonly PublicArea[] = [
   "explore",
@@ -25,6 +26,16 @@ export const SITE_DIRECTORY_AREA_LABELS: Record<PublicArea, string> = {
   results: "Results",
   me: "Me",
   help: "Rules & help",
+};
+
+/** A short explanation of each navigation family, shared by all three clients. */
+export const SITE_DIRECTORY_AREA_DESCRIPTIONS: Record<PublicArea, string> = {
+  home: "What's happening now and the latest published updates.",
+  explore: "Countries, editions, shows, stories and reference material.",
+  participate: "Your available participation actions and responsibilities.",
+  results: "Official published results, records and analyses.",
+  me: "Your Solaris account, activity and personal history.",
+  help: "Official rules, assistance and public guidance.",
 };
 
 export type SiteDirectoryArea = PublicArea | "all";
@@ -48,10 +59,9 @@ export function filterSiteDirectory(
   query: string,
   area: SiteDirectoryArea = "all",
 ): PublicDestination[] {
-  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   return destinations.filter((item) =>
     (area === "all" || item.area === area) &&
-    terms.every((term) => publicSearchText(item).includes(term)),
+    matchesPublicDirectorySearch(query, [publicSearchText(item)]),
   );
 }
 

@@ -10,6 +10,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { useState } from "react";
+import { CinematicEditorialHero } from "./CinematicEditorialHero";
 
 import { EventTime } from "@/components/public/EventTime";
 import type {
@@ -26,7 +27,6 @@ import { canOpenV3EditionResults } from "@/lib/v3-edition-results-navigation";
 import {
   V3ActionCard,
   V3Screen,
-  V3ScreenHeader,
   V3Section,
   V3StatusChip,
   V3Surface,
@@ -217,12 +217,12 @@ function SectionNav({
   ];
 
   return (
-    <nav aria-label={`Explore ${projection.hub.hero.name}`} className="flex flex-wrap gap-2">
+    <nav aria-label={`Explore ${projection.hub.hero.name}`} className="cinematic-entity-section-nav cinematic-edition-nav">
       {links.map((item) =>
         item.locked ? (
           <span
             key={item.key}
-            className="rounded-full border border-white/[0.06] px-3 py-2 text-xs font-semibold text-white/32"
+            className="cinematic-entity-section-nav__disabled"
             aria-disabled="true"
           >
             {item.label}
@@ -231,7 +231,8 @@ function SectionNav({
           <Link
             key={item.key}
             to={item.href as any}
-            className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+            className="cinematic-edition-nav__link"
+            aria-current={item.key === "overview" ? "page" : undefined}
           >
             {item.label}
           </Link>
@@ -249,6 +250,9 @@ export function V3EditionOverviewScreen({
   hideSpoilers: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
+  const visibleLogoUrl = projection.hub.hero.logoUrl && projection.hub.hero.logoUrl !== failedLogoUrl
+    ? projection.hub.hero.logoUrl : null;
   const spoilerSafe = hideSpoilers && !revealed;
   const status = experiencePresentation(projection.hub.hero.experience);
   const meta = editionMeta(projection);
@@ -277,50 +281,47 @@ export function V3EditionOverviewScreen({
     : [];
 
   return (
-    <V3Screen>
-      <V3ScreenHeader
-        kicker="Edition"
+    <V3Screen className="cinematic-entity-screen">
+      <CinematicEditorialHero
+        kind="edition"
+        eyebrow="Solaris Song Contest · Edition"
         title={projection.hub.hero.name}
-        description={meta || "Explore this Solaris edition"}
-        editorial
+        subtitle={meta || "Discover this Solaris edition"}
+        imageUrl={spoilerSafe ? null : projection.hub.hero.artworkUrl}
+        context={
+          <>
+            {visibleLogoUrl ? (
+              <img
+                className="cinematic-edition-logo"
+                src={visibleLogoUrl}
+                alt={`${projection.hub.hero.name} logo`}
+                loading="lazy"
+                decoding="async"
+                onError={() => setFailedLogoUrl(visibleLogoUrl)}
+              />
+            ) : null}
+            <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
+          </>
+        }
       />
-
       {spoilerSafe ? (
         <SpoilerRevealCard onReveal={() => setRevealed(true)} />
       ) : (
-        <V3Surface level="raised" className="overflow-hidden">
-          {projection.hub.hero.artworkUrl ? (
-            <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
-              <img
-                src={projection.hub.hero.artworkUrl}
-                alt=""
-                className="block h-auto max-h-[34rem] w-full object-contain"
-                loading="lazy"
-              />
-              <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"
-                aria-hidden="true"
-              />
-            </div>
-          ) : null}
-          <div className="p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="v3-kicker">Solaris edition</p>
-                <p className="mt-2 text-sm font-semibold leading-5 text-white/72">
-                  {projection.hub.hero.resultsAvailable
-                    ? "Official results are published"
-                    : "Results remain locked until official publication"}
-                </p>
-              </div>
-              <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip>
-            </div>
-            {projection.description ? (
-              <p className="mt-4 text-sm leading-6 text-white/58">{projection.description}</p>
-            ) : null}
-          </div>
-        </V3Surface>
+        <div className="cinematic-entity-intro">
+          <p className="cinematic-entity-intro__state">
+            {projection.hub.hero.resultsAvailable
+              ? "Official results are published"
+              : "Results remain locked until official publication"}
+          </p>
+          {projection.description ? <p>{projection.description}</p> : null}
+        </div>
       )}
+
+      <SectionNav
+        projection={projection}
+        spoilerSafe={spoilerSafe}
+        globalSpoilerProtection={hideSpoilers}
+      />
 
       {projection.hub.liveAction ? (
         <V3Section title="Live now" meta={<V3StatusChip tone="live">Live</V3StatusChip>}>
@@ -379,12 +380,6 @@ export function V3EditionOverviewScreen({
         </V3Section>
       ) : null}
 
-      <SectionNav
-        projection={projection}
-        spoilerSafe={spoilerSafe}
-        globalSpoilerProtection={hideSpoilers}
-      />
-
       <V3Section
         title="At a glance"
         meta={
@@ -393,26 +388,26 @@ export function V3EditionOverviewScreen({
             : undefined
         }
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="cinematic-edition-facts">
           {[
             ["Delegations", projection.overview.participantCount],
             ["Revealed entries", projection.overview.entryCount],
             ["Public shows", projection.overview.showCount],
             ["Semi-finals", projection.overview.semiFinalCount],
           ].map(([label, value]) => (
-            <V3Surface key={String(label)} className="p-4">
-              <p className="text-2xl font-black tabular-nums tracking-[-0.04em]">{value}</p>
-              <p className="mt-1 text-[0.68rem] font-semibold text-white/45">{label}</p>
-            </V3Surface>
+            <div key={String(label)} className="cinematic-edition-facts__item">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
           ))}
-        </div>
+        </dl>
       </V3Section>
 
       <V3Section title="Participants" meta={`${projection.participants.length} public`}>
         {participantPreview.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="cinematic-edition-entity-list">
             {participantPreview.map((participant) => (
-              <V3Surface key={participant.id} className="px-4 py-2.5">
+              <V3Surface key={participant.id} className="cinematic-edition-entity-row px-3 py-1">
                 <IdentityRow
                   item={participant}
                   detail={participant.shortCode}
@@ -449,9 +444,9 @@ export function V3EditionOverviewScreen({
       ) : (
         <V3Section title="Songs & artists" meta={`${projection.entries.length} revealed`}>
           {entryPreview.length ? (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="cinematic-edition-entity-list">
               {entryPreview.map((entry) => (
-                <V3Surface key={entry.id} className="px-4 py-2.5">
+                <V3Surface key={entry.id} className="cinematic-edition-entity-row px-3 py-1">
                   <IdentityRow
                     item={entry}
                     detail={

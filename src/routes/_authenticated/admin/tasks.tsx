@@ -34,6 +34,7 @@ import {
   type OrganizerTaskV5,
 } from "@/lib/admin-tasks-v5";
 import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
+import "@/styles/v3-organizer-tasks-editorial.css";
 
 const FILTERS = [
   "all",
@@ -191,7 +192,7 @@ function OrganizerTasksPage() {
         <AdminPageHeader
           eyebrow={organizerEditionLabel ? `${organizerEditionLabel} · Organizer work` : "Organizer · Work"}
           title="Tasks"
-          description="One domain-backed queue for work that is genuinely unresolved. Reading a notification never completes a task; the authoritative source state does."
+          description="Tasks that need attention in the selected edition. Reading a notification never completes a task; the authoritative source state does."
           actions={
             <div className="flex flex-wrap gap-2">
               <Link to="/admin/inbox" className="admin-action-secondary">
@@ -228,11 +229,17 @@ function OrganizerTasksPage() {
               });
             }}
             className="border-white/[0.07] bg-white/[0.02]"
+            layout="scroll"
           />
         ) : null}
 
         {edition && filter !== "resolved" ? (
-          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
+          <section
+            className="v3-organizer-task-metrics grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5"
+            role="region"
+            aria-label="Task status summary"
+            tabIndex={0}
+          >
             <Metric label="Actionable" value={actionable} tone="info" />
             <Metric label="Blocked" value={blocked} tone="blocked" />
             <Metric label="Waiting" value={waiting} tone="info" />

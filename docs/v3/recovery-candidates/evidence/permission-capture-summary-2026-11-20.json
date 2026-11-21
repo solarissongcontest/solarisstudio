@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-20T18:43:34.86487+00:00",
+  "read_only": true,
+  "server_version_num": 170011,
+  "scope_counts": {
+    "relations": 231,
+    "schemas": 5,
+    "columns": 2487,
+    "policies": 265,
+    "default_acls": 12,
+    "roles": 32,
+    "memberships": 25,
+    "role_config": 19
+  },
+  "schemas": {
+    "auth": {
+      "tables": 27,
+      "raw_owner_acl_rls_sha256": "8f329f2a8c9d5912237cae44373b17b5e9d37c195a852ef8420f28fbad18536f"
+    },
+    "private": {
+      "tables": 13,
+      "raw_owner_acl_rls_sha256": "9d7d119f0d4a6caa086f0d8a83c173388f7858aa21611188105745ef4cb92087"
+    },
+    "public": {
+      "tables": 149,
+      "raw_owner_acl_rls_sha256": "868f63c6f61ad87edc56ea03f1d362906c9d9c0e78c71af3efbc3e93be83e981"
+    },
+    "storage": {
+      "tables": 10,
+      "raw_owner_acl_rls_sha256": "d0703297d0e3fb86340d92dfee386c98b9a48815ea93117e5c2d67a3e505ee8e"
+    },
+    "televoting": {
+      "tables": 26,
+      "raw_owner_acl_rls_sha256": "ad19940a504a5cc06fe7ec7ebf9f45c38c3e61c0ed44c310851bd734b648bad0"
+    }
+  },
+  "uncaptured_setting_count": 0,
+  "certifies_s16_or_platform_recovery": false,
+  "project_ref": "dkxmnvekiopyesuzggeu",
+  "project_identity_verified": true,
+  "project_binding_method": "Authenticated Management API get_project id and execute_sql project_id",
+  "source_main_sha": "f17a015e52c1e3f6e48ebcc07844f1633aa3fba8",
+  "query_sha256": "9b308515cdfa2427129bb01837240eb4f234420823308e5f97e57c708823baea",
+  "private_snapshot_sha256": "2c6f8a3997faf4741f83ad267183578add8bee95c2b6e9ecf1e4c0a243f4680e",
+  "original_four_restore_mismatches_resolved": false,
+  "production_mutation_performed": false,
+  "historical_hosted_raw_digests_reproduced": 5,
+  "critical_effective_truncate_roles": {
+    "public.jury_votes": [],
+    "public.results": [],
+    "public.studio2_show_publication_controls": [],
+    "public.studio2_upload_authorizations": [],
+    "public.televote_votes": []
+  }
+}

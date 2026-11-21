@@ -1,0 +1,68 @@
+/*
+ * Archive = editorial navigation to published historical records.
+ * Browser-only; the installed app retains its canonical layout.
+ */
+html:not([data-solaris-app]) .v3-editorial-archive {
+  --archive-rule: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --archive-soft: color-mix(in oklab, var(--surface) 48%, transparent);
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-archive-context {
+  max-width: 53rem;
+  padding: .75rem 0 1.25rem;
+  border-color: var(--archive-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-archive-context :is(svg,p) {
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-group-title {
+  font-size: clamp(1.25rem, 2.3vw, 1.9rem);
+  padding-bottom: .85rem;
+  margin-bottom: 1rem;
+  border-color: var(--archive-rule);
+  letter-spacing: -.045em;
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-desktop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(1.5rem, 3vw, 3rem);
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-desktop-card {
+  display: flex;
+  min-height: 7.5rem;
+  padding: 1rem .3rem 1.35rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--archive-rule);
+  border-radius: 0;
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-desktop-card:hover {
+  background: var(--archive-soft);
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-card-top strong {
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  letter-spacing: -.026em;
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-card-description {
+  max-width: 46ch;
+  font-size: .84rem;
+  line-height: 1.52;
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-mobile-row {
+  min-height: 4.9rem;
+  border-color: var(--archive-rule);
+}
+html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-mobile-header > p:last-child {
+  max-width: 44ch;
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .v3-editorial-archive .v3-archive-context {
+    margin-bottom: .75rem;
+    padding-block: .5rem .95rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .v3-editorial-archive .v3-directory-desktop-card {
+    transition: none;
+  }
+}

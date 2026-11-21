@@ -14,12 +14,14 @@ export function SolarisMorphingSelection({
   onChange,
   ariaLabel,
   className,
+  layout = "equal",
 }: {
   value: string;
   options: readonly SolarisSelectionOption[];
   onChange: (value: string) => void;
   ariaLabel: string;
   className?: string;
+  layout?: "equal" | "scroll";
 }) {
   const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   const count = Math.max(1, options.length);
@@ -29,20 +31,21 @@ export function SolarisMorphingSelection({
       role="tablist"
       aria-label={ariaLabel}
       data-solaris-morphing-selection=""
+      data-solaris-morphing-layout={layout}
       className={cn(
         "relative grid min-h-11 overflow-hidden rounded-xl border border-border/70 bg-surface/65 p-1",
         className,
       )}
-      style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}
+      style={layout === "equal" ? { gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` } : undefined}
     >
-      <span
+      {layout === "equal" ? <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-y-1 rounded-lg border border-white/[0.08] bg-white/[0.07] transition-[transform,width] duration-200 ease-out motion-reduce:transition-none"
         style={{
           width: `calc((100% - .5rem) / ${count})`,
           transform: `translateX(calc(${selectedIndex} * 100%))`,
         }}
-      />
+      /> : null}
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -57,6 +60,7 @@ export function SolarisMorphingSelection({
               "relative z-[1] min-h-9 min-w-0 rounded-lg px-3 text-sm font-semibold",
               "transition-[color,transform] duration-150 active:scale-[0.97] motion-reduce:active:scale-100",
               selected ? "text-foreground" : "text-muted-foreground",
+              layout === "scroll" && "whitespace-nowrap",
               option.disabled && "cursor-not-allowed opacity-45",
             )}
           >

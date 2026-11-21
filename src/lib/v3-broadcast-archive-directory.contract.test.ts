@@ -34,11 +34,15 @@ describe("V3 broadcast and historical directories: three experiences", () => {
     expect(screen).not.toContain("useAllResults");
   });
 
-  it("retains exactly the six published Archive destinations, without current tasks", () => {
+  it("retains the seven release-filtered Archive topics without current tasks", () => {
     const root = source("src/routes/archive/index.tsx");
-    for (const route of ["/countries", "/editions", "/shows", "/stories", "/encyclopedia", "/archive-games"]) {
+    for (const route of ["/countries", "/editions", "/shows", "/stories", "/wiki", "/records", "/archive-games"]) {
       expect(root).toContain(`to: "${route}"`);
     }
+    const destinations = [...root.matchAll(/\bto: "(\/[^"]+)"/g)].map((match) => match[1]);
+    expect(destinations).toHaveLength(7);
+    expect(new Set(destinations).size).toBe(7);
+    expect(root).not.toContain('to: "/encyclopedia"');
     expect(root).toContain("Historical context stays historical");
     expect(root).toContain('className="v3-archive-context mb-4 border-b');
     expect(root).not.toContain('rounded-2xl border border-border bg-surface/55');

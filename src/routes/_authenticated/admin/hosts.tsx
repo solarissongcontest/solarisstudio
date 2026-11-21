@@ -25,7 +25,9 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import '@/styles/v3-organizer-hosts-editorial.css';
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useSolarisApp } from '@/components/app/AppRuntime';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
@@ -66,6 +68,19 @@ export const Route = createFileRoute('/_authenticated/admin/hosts')({
 });
 
 type HostView = 'overview' | 'bids' | 'evaluation' | 'selected' | 'operations';
+
+const HOST_VIEWS: ReadonlyArray<{ id: HostView; label: string }> = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'bids', label: 'Bids' },
+  { id: 'evaluation', label: 'Evaluation' },
+  { id: 'selected', label: 'Selected host' },
+  { id: 'operations', label: 'Operations' },
+];
+
+function hostViewFromHash(hash: string): HostView {
+  const key = hash.startsWith('#host-') ? hash.slice('#host-'.length) : 'overview';
+  return HOST_VIEWS.find((item) => item.id === key)?.id ?? 'overview';
+}
 
 type PendingOperation = {
   action: HostOperationAction;
@@ -146,10 +161,32 @@ const criterionLabels: Record<HostEvaluationCriterion, string> = {
 
 function HostManagementPage() {
   const { editionId } = useAdminContext();
+  const { isAppMode } = useSolarisApp();
   const queryClient = useQueryClient();
   const editionsQuery = useEditions();
   const countriesQuery = useCountries();
   const [view, setView] = useState<HostView>('overview');
+
+  // The browser website has shareable sections and Back/Forward restoration.
+  // The installed application keeps its original local section state.
+  useEffect(() => {
+    if (isAppMode) return;
+    const restore = () => setView(hostViewFromHash(window.location.hash));
+    restore();
+    window.addEventListener('hashchange', restore);
+    window.addEventListener('popstate', restore);
+    return () => {
+      window.removeEventListener('hashchange', restore);
+      window.removeEventListener('popstate', restore);
+    };
+  }, [isAppMode]);
+
+  const openHostView = (next: HostView) => {
+    if (!isAppMode && next !== view) {
+      window.history.pushState(window.history.state, '', `${window.location.pathname}${window.location.search}#host-${next}`);
+    }
+    setView(next);
+  };
   const [pending, setPending] = useState<PendingOperation | null>(null);
   const [pendingReason, setPendingReason] = useState('');
   const [bidSheet, setBidSheet] = useState<{ mode: 'create' | 'edit'; bid?: HostBid } | null>(null);
@@ -461,11 +498,13 @@ function HostManagementPage() {
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-[1500px] space-y-4">
+      <div className="admin-host-workspace mx-auto max-w-[1500px] space-y-4" data-host-workspace="">
         <AdminPageHeader
-          eyebrow="Solaris Studio 2 · Host Management"
+          eyebrow={isAppMode ? "Solaris Studio 2 · Host Management" : undefined}
           title="Host Management"
-          description="Run the complete host process from candidate bids and evaluation to canonical selection, show assignments and operational readiness. Public host locations remain backed by the existing edition and show host fields."
+          description={isAppMode
+            ? "Run the complete host process from candidate bids and evaluation to canonical selection, show assignments and operational readiness. Public host locations remain backed by the existing edition and show host fields."
+            : undefined}
           actions={edition ? (
             <div className="flex flex-wrap gap-2">
               <a href={`/admin/${edition.slug}`} className="admin-action-secondary">Edition <ExternalLink className="size-4" /></a>
@@ -475,7 +514,7 @@ function HostManagementPage() {
           ) : undefined}
         />
 
-        {edition ? <HostTabs view={view} onChange={setView} /> : null}
+        {edition ? <HostTabs view={view} onChange={openHostView} /> : null}
 
         {!edition && !editionsQuery.isLoading ? (
           <AdminCard><AdminEmptyState icon={MapPinned} title="Choose an edition" description="Select the exact Organizer edition before managing hosts. Solaris will not substitute the newest or globally active edition when the saved context is missing or stale." /></AdminCard>
@@ -485,7 +524,7 @@ function HostManagementPage() {
           <AdminCard><AdminEmptyState icon={AlertTriangle} title="Host Management could not load" description={errorText(error)} /></AdminCard>
         ) : snapshot && summary ? (
           <>
-            {view === 'overview' ? <OverviewView snapshot={snapshot} summary={summary} onView={setView} onCreateBid={openCreateBid} /> : null}
+            {view === 'overview' ? <OverviewView snapshot={snapshot} summary={summary} onView={openHostView} onCreateBid={openCreateBid} /> : null}
             {view === 'bids' ? (
               <BidsView
                 snapshot={snapshot}
@@ -619,15 +658,18 @@ function HostManagementPage() {
 }
 
 function HostTabs({ view, onChange }: { view: HostView; onChange: (view: HostView) => void }) {
-  const tabs: Array<{ id: HostView; label: string }> = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'bids', label: 'Bids' },
-    { id: 'evaluation', label: 'Evaluation' },
-    { id: 'selected', label: 'Selected host' },
-    { id: 'operations', label: 'Operations' },
-  ];
-  return <WorkspaceTabs label="Host management sections" className="gap-2">
-    {tabs.map((tab) => <button key={tab.id} type="button" className={view === tab.id ? 'admin-action-primary min-w-0' : 'admin-action-secondary min-w-0'} onClick={() => onChange(tab.id)}>{tab.label}</button>)}
+  return <WorkspaceTabs label="Host management sections" className="admin-host-tabs gap-2">
+    {HOST_VIEWS.map((tab) => (
+      <button
+        key={tab.id}
+        type="button"
+        aria-pressed={view === tab.id}
+        className={view === tab.id ? 'admin-action-primary min-w-0' : 'admin-action-secondary min-w-0'}
+        onClick={() => onChange(tab.id)}
+      >
+        {tab.label}
+      </button>
+    ))}
   </WorkspaceTabs>;
 }
 
@@ -638,8 +680,8 @@ function OverviewView({ snapshot, summary, onView, onCreateBid }: {
   onCreateBid: () => void;
 }) {
   const selected = summary.selected;
-  return <div className="space-y-4">
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+  return <div className="admin-host-overview space-y-4">
+    <section className="admin-host-metrics grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       <Metric label="Bids" value={summary.bids} icon={FileCheck2} />
       <Metric label="Submitted" value={summary.submitted} icon={ClipboardCheck} />
       <Metric label="Eligible" value={summary.eligible} icon={ShieldCheck} />
@@ -648,7 +690,7 @@ function OverviewView({ snapshot, summary, onView, onCreateBid }: {
     </section>
 
     {selected ? (
-      <AdminCard strong>
+      <AdminCard strong className="admin-host-selected">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2"><AdminStatus tone="ready">Selected host</AdminStatus><AdminStatus tone="neutral">v{selected.revision}</AdminStatus></div>
@@ -663,10 +705,10 @@ function OverviewView({ snapshot, summary, onView, onCreateBid }: {
         </div>
       </AdminCard>
     ) : (
-      <AdminCard><AdminEmptyState icon={MapPinned} title="Host selection pending" description={snapshot.bids.length ? 'Review submitted bids, establish eligibility, shortlist candidates and select the canonical host.' : 'Create the first candidate host bid to begin the selection process.'} action={<button type="button" className="admin-action-primary" onClick={onCreateBid}><Plus className="size-4" /> Create host bid</button>} /></AdminCard>
+      <AdminCard className="admin-host-selected"><AdminEmptyState icon={MapPinned} title="Host selection pending" description={snapshot.bids.length ? 'Review submitted bids, establish eligibility, shortlist candidates and select the canonical host.' : 'Create the first candidate host bid to begin the selection process.'} action={<button type="button" className="admin-action-primary" onClick={onCreateBid}><Plus className="size-4" /> Create host bid</button>} /></AdminCard>
     )}
 
-    <AdminCard>
+    <AdminCard className="admin-host-steps">
       <div className="grid gap-3 lg:grid-cols-3">
         <OverviewStep number="1" title="Bids & eligibility" description="Capture venue, transport, accommodation, production, accessibility and supporting bid evidence." onClick={() => onView('bids')} />
         <OverviewStep number="2" title="Evaluation & selection" description="Score comparable criteria and make a deliberate human host-selection decision." onClick={() => onView('evaluation')} />
@@ -684,7 +726,7 @@ function BidsView({ snapshot, busy, onCreateBid, onEditBid, onEvaluate, onAction
   onEvaluate: (bid: HostBid) => void;
   onAction: (bid: HostBid, action: HostOperationAction) => void;
 }) {
-  return <div className="space-y-4">
+  return <div className="admin-host-bids space-y-4">
     <div className="flex justify-end"><button type="button" className="admin-action-primary" onClick={onCreateBid}><Plus className="size-4" /> Create bid</button></div>
     {!snapshot.bids.length ? <AdminCard><AdminEmptyState icon={Building2} title="No host bids yet" description="Create a candidate city and venue bid to begin host selection." /></AdminCard> : (
       <div className="space-y-3">
@@ -702,7 +744,7 @@ function BidCard({ bid, busy, onEdit, onEvaluate, onAction }: {
   onAction: (bid: HostBid, action: HostOperationAction) => void;
 }) {
   const actions = availableHostBidActions(bid);
-  return <AdminCard className="!p-4">
+  return <AdminCard className="admin-host-bid !p-4">
     <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -726,7 +768,7 @@ function BidCard({ bid, busy, onEdit, onEvaluate, onAction }: {
         ))}
       </div>
     </div>
-    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="admin-host-bid-metadata mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       <InfoCell icon={Plane} label="Airport" value={bid.airportSummary || 'Not supplied'} />
       <InfoCell icon={TrainFront} label="Transport" value={bid.transportSummary || 'Not supplied'} />
       <InfoCell icon={RadioTower} label="Production" value={bid.productionSummary || 'Not supplied'} />

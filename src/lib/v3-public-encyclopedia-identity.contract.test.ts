@@ -38,10 +38,14 @@ describe("Public Encyclopedia durable identity boundary", () => {
   it("preserves old artist query bookmarks as search input without treating them as identity", () => {
     const implementation = route();
 
-    expect(implementation).toContain(
-      'artist: typeof search.artist === "string" ? search.artist : undefined',
-    );
-    expect(implementation).toContain('useState(search.artist ?? "")');
+    // URL input sanitization and legacy artist compatibility belong to the
+    // shared parser, not mutable artist entities or a duplicated inline parser.
+    const urlParser = readFileSync(resolve(root, "src/lib/v3-reference-url-search.ts"), "utf8");
+    expect(implementation).toContain("validateSearch: parseReferenceUrlSearch");
+    expect(implementation).toContain("referenceQueryFromUrl(search)");
+    expect(implementation).toContain("useState(urlQuery)");
+    expect(urlParser).toContain("artist: cleanTerm(value.artist)");
+    expect(urlParser).toContain('value.q ?? value.artist ?? ""');
     expect(implementation).not.toContain(
       'href: `/encyclopedia?artist=${encodeURIComponent(artist.name)}`',
     );

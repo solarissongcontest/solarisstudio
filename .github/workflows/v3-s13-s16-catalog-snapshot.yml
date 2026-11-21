@@ -1,0 +1,24 @@
+name: V3 S13-S16 production catalog snapshot offline
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/v3/recovery-candidates/evidence/s13-s16-current-hosted-catalog-2026-11-20.json"
+      - "docs/v3/recovery-candidates/s13-s16-current-hosted-catalog-2026-11-20.md"
+      - "scripts/check-v3-s13-s16-hosted-catalog-snapshot.mjs"
+      - ".github/workflows/v3-s13-s16-catalog-snapshot.yml"
+permissions:
+  contents: read
+jobs:
+  immutable-local-catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      SUPABASE_PROJECT_REF: local
+      SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: node --check scripts/check-v3-s13-s16-hosted-catalog-snapshot.mjs
+      - run: node scripts/check-v3-s13-s16-hosted-catalog-snapshot.mjs

@@ -21,11 +21,13 @@ import {
   WORLD_PUBLIC_ROLLOUT_KEY,
   cleanWorldSearch,
   currentWorldMemberships,
+  currentPublicWorldRepresentativeNames,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
   fetchWorldPublicEnabled,
   fetchWorldProjection,
   parseWorldDirectoryRows,
+  parseWorldDirectoryUrlPage,
   parseWorldProjection,
 } from "./terra-world-public";
 
@@ -130,6 +132,25 @@ describe("TG3 world publication-safe projections", () => {
     expect(projection?.representatives[0]).not.toHaveProperty("personId");
   });
 
+
+  it("lists non-voting public representatives without turning them into voting authority", () => {
+    const names = currentPublicWorldRepresentativeNames([
+      { id: "rep-a", countryId: "country-a", displayName: "Delegate A",
+        role: "representative", votingAuthority: false, endsAt: null },
+      { id: "rep-b", countryId: "country-a", displayName: "Delegate B",
+        role: "representative", votingAuthority: true, endsAt: null },
+      { id: "rep-dup", countryId: "country-a", displayName: "Delegate B",
+        role: "representative", votingAuthority: false, endsAt: null },
+      { id: "former", countryId: "country-b", displayName: "Former delegate",
+        role: "representative", votingAuthority: true, endsAt: "2026-01-01" },
+      { id: "observer", countryId: "country-c", displayName: "Observer official",
+        role: "observer", votingAuthority: false, endsAt: null },
+    ]);
+    expect(names.get("country-a")).toEqual(["Delegate A", "Delegate B"]);
+    expect(names.has("country-b")).toBe(false);
+    expect(names.has("country-c")).toBe(false);
+  });
+
   it("counts current membership statuses but not concluded historical terms", () => {
     const projection = parseWorldProjection({
       organization, organs: [], offices: [],
@@ -156,7 +177,18 @@ describe("TG3 world publication-safe projections", () => {
     expect(cleanWorldSearch("a".repeat(200))).toHaveLength(64);
   });
 
+  it("accepts only bounded one-based URL page numbers", () => {
+    expect(parseWorldDirectoryUrlPage(undefined)).toBe(1);
+    expect(parseWorldDirectoryUrlPage("2")).toBe(2);
+    expect(parseWorldDirectoryUrlPage(1001)).toBe(1001);
+    for (const invalid of [null, true, "", "0", "02", "-3", "1.5", "1002", "Infinity", 0, 2.5, 1002]) {
+      expect(parseWorldDirectoryUrlPage(invalid)).toBe(1);
+    }
+  });
+
   it("requests only public organizations and bounded pages", async () => {
+    // Page 2 starts at offset 24. Its exact count must include the returned row.
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 25, error: null });
     const result = await fetchWorldDirectory({ term: "", filter: "all", page: 2 });
     expect(mocks.from).toHaveBeenCalledWith("world_organizations");
     expect(mocks.chain.select).toHaveBeenCalledWith(
@@ -164,6 +196,13 @@ describe("TG3 world publication-safe projections", () => {
     expect(mocks.chain.eq).toHaveBeenCalledWith("public_visibility", "public");
     expect(mocks.chain.range).toHaveBeenCalledWith(2 * WORLD_DIRECTORY_PAGE_SIZE, 3 * WORLD_DIRECTORY_PAGE_SIZE - 1);
     expect(result.organizations).toHaveLength(1);
+    expect(result.total).toBe(25);
+  });
+
+  it("rejects a page whose returned rows contradict the verified count", async () => {
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 1, error: null });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 2 }))
+      .rejects.toThrow("World directory page count could not be verified");
   });
 
   it("rejects missing count proof instead of displaying a false zero", async () => {

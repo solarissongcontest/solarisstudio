@@ -1,5 +1,6 @@
+import "@/styles/v3-records-website-editorial.css";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import {
@@ -12,8 +13,14 @@ import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { usePublicPresentationMode } from "@/lib/use-public-presentation-mode";
+import { usePublicLaunchAvailability } from "@/lib/public-launch-context";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
 import { buildCanonicalFanRecordsWithCoverage } from "@/lib/canonical-fan-records";
+import { filterPublishedFanRecords } from "@/lib/fan-records-search";
+import {
+  createRecordsDirectorySearch,
+  parseRecordsDirectoryState,
+} from "@/lib/fan-records-directory-state";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -75,7 +82,7 @@ function RecordsPage() {
   return <LegacyRecordsPage />;
 }
 
-function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: boolean }) {
+function RecordsPageHeader({ mobileWeb, ready, showArchiveGames }: { mobileWeb: boolean; ready: boolean; showArchiveGames: boolean }) {
   if (mobileWeb) {
     return (
       <header
@@ -89,7 +96,7 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
             ? "Achievements, streaks and unusual results from the published SSC archive. Tied countries share the record."
             : "Verified records from the published archive."}
         </p>
-        {ready ? (
+        {showArchiveGames ? (
           <Link
             to="/archive-games"
             className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
@@ -107,10 +114,10 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
       title="Records"
       description={
         ready
-          ? "The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
+          ? "Published records, remarkable achievements and the countries that hold them."
           : "Verified records from the published archive."
       }
-      actions={ready ? (
+      actions={showArchiveGames ? (
         <Link
           to="/archive-games"
           className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
@@ -123,6 +130,9 @@ function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: bo
 }
 
 function LegacyRecordsPage() {
+  const { isAppMode } = useSolarisApp();
+  const { allowsReleased } = usePublicLaunchAvailability();
+  const [recordSearch, setRecordSearch] = useState("");
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
@@ -142,6 +152,47 @@ function LegacyRecordsPage() {
   const presentationMode = usePublicPresentationMode();
   const mobileWeb = presentationMode === "mobile-web";
 
+  // The website has shareable discovery filters. The installed PWA retains its
+  // existing category, independent of browser query parameters.
+  useEffect(() => {
+    if (isAppMode) return;
+    const restoreFromLocation = () => {
+      const state = parseRecordsDirectoryState(window.location.search);
+      setTab(state.category);
+      setRecordSearch(state.search);
+    };
+    restoreFromLocation();
+    window.addEventListener("popstate", restoreFromLocation);
+    return () => window.removeEventListener("popstate", restoreFromLocation);
+  }, [isAppMode]);
+
+  const updateBrowserLocation = (
+    category: Tab,
+    search: string,
+    method: "pushState" | "replaceState",
+  ) => {
+    if (isAppMode) return;
+    const nextSearch = createRecordsDirectorySearch(window.location.search, { category, search });
+    const next = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next !== current) window.history[method](window.history.state, "", next);
+  };
+  const changeCategory = (category: Tab) => {
+    if (category === tab) return;
+    setTab(category);
+    updateBrowserLocation(category, recordSearch, "pushState");
+  };
+  const changeSearch = (value: string) => {
+    const search = value.slice(0, 160);
+    setRecordSearch(search);
+    updateBrowserLocation(tab, search, "replaceState");
+  };
+  const showAllRecords = () => {
+    setTab("all");
+    setRecordSearch("");
+    updateBrowserLocation("all", "", "pushState");
+  };
+
   const { records, archivedFinalEditions } = useMemo(
     () =>
       buildCanonicalFanRecordsWithCoverage({
@@ -155,10 +206,11 @@ function LegacyRecordsPage() {
     [countries, editions, shows, participants, results, jury],
   );
 
-  const filtered =
-    tab === "all"
-      ? records
-      : records.filter((record) => record.category === tab);
+  const normalizedRecordSearch = isAppMode ? "" : recordSearch.trim();
+  const filtered = filterPublishedFanRecords(records, tab, normalizedRecordSearch);
+  const categoryTotal = tab === "all"
+    ? records.length
+    : records.filter((record) => record.category === tab).length;
   const coverageDescription = (
     <>
       These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
@@ -179,7 +231,7 @@ function LegacyRecordsPage() {
   if (loading || failed) {
     return (
       <AppShell>
-        <RecordsPageHeader mobileWeb={mobileWeb} ready={false} />
+        <RecordsPageHeader mobileWeb={mobileWeb} ready={false} showArchiveGames={false} />
         {loading ? (
           <ArchiveDataLoading label="Calculating records from the archive…" />
         ) : (
@@ -192,24 +244,24 @@ function LegacyRecordsPage() {
   return (
     <AppShell>
       <div data-records-presentation={presentationMode}>
-        <RecordsPageHeader mobileWeb={mobileWeb} ready />
+        <RecordsPageHeader mobileWeb={mobileWeb} ready showArchiveGames={allowsReleased("/archive-games")} />
 
-        {mobileWeb ? (
-          <details className="mb-5 border-y border-border/70" data-records-mobile-web-coverage>
+        {isAppMode ? (
+          <Panel className="mb-5" title="Archive coverage">
+            <p className="text-xs leading-relaxed text-muted-foreground">{coverageDescription}</p>
+          </Panel>
+        ) : (
+          <details
+            className="records-editorial-coverage mb-5 border-y border-border/70"
+            data-records-mobile-web-coverage={mobileWeb ? "" : undefined}
+            data-records-desktop-web-coverage={!mobileWeb ? "" : undefined}
+          >
             <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 py-3 text-sm font-semibold">
               <span>Archive coverage</span>
               <span className="text-xs font-medium text-muted-foreground">{archivedFinalEditions} final editions</span>
             </summary>
-            <p className="pb-4 text-sm leading-6 text-muted-foreground">
-              {coverageDescription}
-            </p>
+            <p className="pb-4 text-sm leading-6 text-muted-foreground">{coverageDescription}</p>
           </details>
-        ) : (
-          <Panel className="mb-5" title="Archive coverage">
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {coverageDescription}
-            </p>
-          </Panel>
         )}
 
         {mobileWeb ? (
@@ -218,7 +270,7 @@ function LegacyRecordsPage() {
               <button
                 type="button"
                 key={option.value}
-                onClick={() => setTab(option.value)}
+                onClick={() => changeCategory(option.value)}
                 aria-pressed={tab === option.value}
                 className={tab === option.value
                   ? "min-h-12 shrink-0 whitespace-nowrap border-b-2 border-primary px-1 text-sm font-semibold text-foreground"
@@ -229,19 +281,61 @@ function LegacyRecordsPage() {
             ))}
           </nav>
         ) : (
-          <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Record category" className="mb-5" />
+          <ResponsiveTabs value={tab} options={TABS} onChange={changeCategory} label="Record category" className="mb-5" />
         )}
 
+        {!isAppMode ? (
+          <div className="records-editorial-searchbar" role="search" aria-label="Search published records">
+            <label htmlFor="records-editorial-query">Search published records</label>
+            <input
+              id="records-editorial-query"
+              type="search"
+              value={recordSearch}
+              onChange={(event) => changeSearch(event.target.value)}
+              placeholder="Record, country, artist or song"
+              autoComplete="off"
+              maxLength={160}
+            />
+            {recordSearch.length > 0 ? (
+              <button type="button" className="records-editorial-clear" onClick={() => changeSearch("")}>
+                Clear search
+              </button>
+            ) : null}
+            <span role="status" aria-live="polite" data-records-website-count>
+              {filtered.length} of {categoryTotal} {categoryTotal === 1 ? "record" : "records"}
+            </span>
+          </div>
+        ) : null}
+
         {filtered.length ? (
-          <div className={mobileWeb ? "min-w-0 divide-y divide-border/70" : "grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"}>
+          <div className={mobileWeb ? "min-w-0 divide-y divide-border/70" : "records-editorial-grid grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"}>
             {filtered.map((record) => (
               <RecordCard key={record.id} record={record} mobileWeb={mobileWeb} />
             ))}
           </div>
-        ) : mobileWeb ? (
-          <p role="status" className="py-6 text-sm text-muted-foreground">No records in this category yet.</p>
+        ) : isAppMode ? (
+          <Panel>
+            <p className="text-sm text-muted-foreground">No records in this category yet.</p>
+          </Panel>
         ) : (
-          <Panel><p className="text-sm text-muted-foreground">No records in this category yet.</p></Panel>
+          <div className="records-editorial-empty py-6" role="status">
+            <p className="text-sm text-muted-foreground">
+              {normalizedRecordSearch
+                ? "No published records match your search."
+                : tab === "all"
+                  ? "No published records are available yet."
+                  : "No records in this category yet."}
+            </p>
+            {(tab !== "all" || normalizedRecordSearch) && (
+              <button
+                type="button"
+                className="records-editorial-reset"
+                onClick={showAllRecords}
+              >
+                Show all published records
+              </button>
+            )}
+          </div>
         )}
       </div>
     </AppShell>
@@ -253,7 +347,7 @@ function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boole
   const remainingHolders = record.holders.slice(8);
 
   return (
-    <article className={mobileWeb ? "min-w-0 py-5 first:pt-0" : "glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5"} data-records-mobile-web-row={mobileWeb ? "" : undefined}>
+    <article id={`record-${record.id}`} className={mobileWeb ? "min-w-0 py-5 first:pt-0" : "records-editorial-desktop-row flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5"} data-records-mobile-web-row={mobileWeb ? "" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
@@ -277,7 +371,7 @@ function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boole
         {record.explanation}
       </p>
 
-      <div className={mobileWeb ? "mt-4 divide-y divide-border/55 border-y border-border/65" : "mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3"}>
+      <div className={mobileWeb ? "mt-4 divide-y divide-border/55 border-y border-border/65" : "records-editorial-holders mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3"}>
         {primaryHolders.map((holder) => (
           <RecordHolderRow key={holder.countryId} holder={holder} mobileWeb={mobileWeb} />
         ))}
@@ -285,7 +379,7 @@ function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boole
 
       {remainingHolders.length > 0 && (
         <details className="mt-2 overflow-hidden rounded-xl border border-border/60 bg-surface/35">
-          <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
             Show all {record.holders.length} tied countries ▾
           </summary>
           <div className="divide-y divide-border/55 border-t border-border/55 px-3">
@@ -300,6 +394,8 @@ function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boole
 }
 
 function RecordHolderRow({ holder, mobileWeb }: { holder: FanRecordHolder; mobileWeb: boolean }) {
+  const { allowsReleased } = usePublicLaunchAvailability();
+  const canOpenCountry = allowsReleased(`/countries/${encodeURIComponent(holder.shortCode)}`);
   return (
     <div className="py-3 first:pt-2.5 last:pb-2.5">
       <div className="flex min-w-0 items-start gap-3">
@@ -311,13 +407,17 @@ function RecordHolderRow({ holder, mobileWeb }: { holder: FanRecordHolder; mobil
         />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <Link
-              to="/countries/$code"
-              params={{ code: holder.shortCode }}
-              className={mobileWeb ? "break-words text-sm font-semibold text-foreground hover:text-primary" : "truncate text-sm font-semibold text-foreground hover:text-primary"}
-            >
-              {holder.countryName}
-            </Link>
+            {canOpenCountry ? (
+              <Link
+                to="/countries/$code"
+                params={{ code: holder.shortCode }}
+                className={mobileWeb ? "break-words text-sm font-semibold text-foreground hover:text-primary" : "truncate text-sm font-semibold text-foreground hover:text-primary"}
+              >
+                {holder.countryName}
+              </Link>
+            ) : (
+              <span className="break-words text-sm font-semibold text-foreground">{holder.countryName}</span>
+            )}
             {holder.editionLabel && (
               <span className="text-[10px] text-muted-foreground">
                 {holder.editionLabel}

@@ -59,6 +59,8 @@ function CountryWikiRoute() {
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
     enabled: platformResolved,
     staleTime: 30_000,
+    refetchOnMount: "always",
+    retry: false,
   });
 
   useEffect(() => {
@@ -67,11 +69,11 @@ function CountryWikiRoute() {
 
   // Preserve the historical URL as a compatibility entry point, never a
   // competing identity after public Reference is published for this viewer.
-  if (!platformResolved || referenceRollout.isLoading) {
+  if (!platformResolved || referenceRollout.isLoading || referenceRollout.isFetching) {
     return <WikiHydrationSkeleton code={code} label="Opening canonical country profile" />;
   }
 
-  if (!referenceRollout.isError && referenceRollout.data === true) {
+  if (referenceRollout.isSuccess && !referenceRollout.isRefetchError && referenceRollout.data === true) {
     return <Navigate to="/countries/$code" params={{ code }} replace />;
   }
 

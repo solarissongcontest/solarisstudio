@@ -27,6 +27,7 @@ export function AdminSectionNav() {
   return (
     <section
       className="mb-4 border-b border-white/[0.07] pb-3 sm:mb-5 sm:pb-4"
+      data-organizer-context-section=""
       aria-label={`${section.domain.label} navigation`}
     >
       <div className="mb-2.5 flex min-w-0 items-baseline gap-2 px-0.5">
@@ -41,7 +42,8 @@ export function AdminSectionNav() {
       <TabRow tabs={section.tabs} pathname={pathname} label={`${section.domain.label} sections`} />
 
       {section.workflow ? (
-        <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.018] px-2 py-2">
+        <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.018] px-2 py-2"
+          data-organizer-workflow-tabs="">
           <p className="mb-1.5 px-1 text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
             {section.workflow.label}
           </p>
@@ -71,6 +73,8 @@ function TabRow({
   return (
     <nav
       aria-label={label}
+      data-organizer-context-tabrow=""
+      data-organizer-tab-density={compact ? "workflow" : "section"}
       className={cn(
         "-mx-1 flex flex-wrap gap-1 px-1 pb-0.5",
         compact ? "items-center" : "items-stretch",

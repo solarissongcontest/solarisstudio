@@ -48,7 +48,9 @@ describe("edition public page architecture", () => {
   it("keeps artwork and logo as distinct hero roles and glass out of content panels", () => {
     expect(route).toContain("artwork={edition.artwork_url ?? null}");
     expect(route).toContain("logo={edition.logo ?? null}");
-    expect(primitives).toContain('data-has-logo={logo ? "true" : "false"}');
+    expect(primitives).toContain('data-has-logo={visibleLogo ? "true" : "false"}');
+    expect(primitives).toContain("setFailedLogo(visibleLogo)");
+    expect(primitives).toContain("setFailedArtwork(visibleArtwork)");
     expect(css).toContain(":where(.glass, .data-panel):not(.public-current-status)");
     expect(css).toContain("backdrop-filter: none !important");
   });

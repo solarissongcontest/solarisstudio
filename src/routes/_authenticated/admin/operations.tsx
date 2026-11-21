@@ -1,4 +1,6 @@
+import "@/styles/v3-organizer-overview-editorial.css";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -10,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { LiveRundownCueSummary } from "@/components/admin/LiveRundownCueSummary";
 import {
@@ -45,6 +48,9 @@ export const Route = createFileRoute("/_authenticated/admin/operations")({
 
 function OrganizerOverview() {
   const { editionId } = useAdminContext();
+  const { isAppMode } = useSolarisApp();
+  const [showReady, setShowReady] = useState(false);
+  const [showSecondary, setShowSecondary] = useState(false);
   const projectionQuery = useV3OrganizerProjection(editionId || null);
   const projection = projectionQuery.data ?? null;
   const overviewStatus = projection
@@ -62,11 +68,13 @@ function OrganizerOverview() {
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-5xl">
-        <AdminPageHeader
-          eyebrow="Overview"
+      <div className="admin-organizer-overview mx-auto max-w-6xl" data-admin-overview="">
+<AdminPageHeader
+          eyebrow={isAppMode ? "Overview" : undefined}
           title="Solaris Organizer"
-          description="Current scope, what needs intervention, what happens next and why the edition is or is not ready."
+          description={isAppMode
+            ? "Current scope, what needs intervention, what happens next and why the edition is or is not ready."
+            : undefined}
         />
 
         {!editionId ? (
@@ -100,7 +108,7 @@ function OrganizerOverview() {
         ) : (
           <>
             <section
-              className="mb-4 flex flex-col gap-3 rounded-2xl border border-sky-200/10 bg-sky-200/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="admin-overview-context mb-4 flex flex-col gap-3 rounded-2xl border border-sky-200/10 bg-sky-200/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between"
               data-organizer-context-lock=""
               aria-label="Current Organizer context"
             >
@@ -119,8 +127,8 @@ function OrganizerOverview() {
               </AdminStatus>
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]" aria-label="Current priorities">
-              <AdminCard strong>
+            <section className="admin-overview-first grid gap-4 lg:grid-cols-[1.5fr_.75fr]" aria-label="Current priorities">
+              <AdminCard strong className="admin-overview-priorities">
                 <AdminCardHeader
                   eyebrow="Needs attention"
                   title={
@@ -130,7 +138,7 @@ function OrganizerOverview() {
                   }
                   description={
                     projection.attention.length
-                      ? "Only the highest-priority unresolved canonical conditions are shown here."
+                      ? undefined
                       : emptyAttention?.description ?? "Operational evidence is unavailable."
                   }
                   action={
@@ -178,7 +186,7 @@ function OrganizerOverview() {
                 )}
               </AdminCard>
 
-              <AdminCard>
+              <AdminCard className="admin-overview-next">
                 <AdminCardHeader
                   eyebrow="Next"
                   title={projection.upcoming[0]?.label ?? "Nothing scheduled"}
@@ -248,7 +256,7 @@ function OrganizerOverview() {
             ) : null}
 
             <section className="mt-4" aria-label="Edition readiness">
-              <AdminCard>
+              <AdminCard className="admin-overview-readiness">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="admin-section-label">Readiness</p>
@@ -256,46 +264,60 @@ function OrganizerOverview() {
                       {projection.readiness.overall}%
                     </h2>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      Deterministic edition health, calculated by server rules at {new Date(projection.readiness.calculatedAt).toLocaleTimeString()}.
+                      Updated {new Date(projection.readiness.calculatedAt).toLocaleTimeString()}.
                     </p>
                   </div>
                   <div className="min-w-44">
                     <AdminProgress value={projection.readiness.overall} />
-                    <p className="mt-2 text-[10px] text-muted-foreground">
-                      State {projection.readiness.stateVersion}
-                    </p>
+
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="admin-overview-readiness-active mt-4 grid gap-3 md:grid-cols-2">
                   <ReadinessGroup
                     title="Blocking"
                     items={projection.readiness.blocking}
-                    empty="No blocking readiness factor"
+                    empty="No blockers"
                     tone="blocked"
                   />
                   <ReadinessGroup
                     title="Incomplete"
                     items={projection.readiness.incomplete}
-                    empty="No incomplete readiness factor"
+                    empty="No incomplete items"
                     tone="attention"
                   />
+                </div>
+                <details className="admin-overview-ready-details" open={isAppMode || showReady} onToggle={(event) => setShowReady(event.currentTarget.open)}>
+                  <summary>
+                    <span>Verified ready</span>
+                    <span>{projection.readiness.ready.length} factors</span>
+                  </summary>
                   <ReadinessGroup
                     title="Ready"
                     items={projection.readiness.ready}
-                    empty="No verified ready factor"
+                    empty="No verified ready factors"
                     tone="ready"
                   />
-                </div>
+                  <p className="admin-overview-readiness-version">
+                    State version {projection.readiness.stateVersion}
+                  </p>
+                </details>
               </AdminCard>
             </section>
 
-            <section className="mt-4 grid gap-4 lg:grid-cols-[.8fr_1.2fr]" aria-label="Recent changes and domains">
+            <details className="admin-overview-secondary mt-5" open={isAppMode || showSecondary} onToggle={(event) => setShowSecondary(event.currentTarget.open)}>
+              <summary className="admin-overview-secondary-summary">
+                <span>Operational details</span>
+                <span>
+                  {Object.values(projection.domains).filter((domain) => domain.state === "blocked" || domain.state === "attention").length
+                    ? `${Object.values(projection.domains).filter((domain) => domain.state === "blocked" || domain.state === "attention").length} areas need attention`
+                    : "Domains and recent changes"}
+                </span>
+              </summary>
+              <section className="mt-4 grid gap-4 lg:grid-cols-[.8fr_1.2fr]" aria-label="Recent changes and domains">
               <AdminCard>
                 <AdminCardHeader
-                  eyebrow="Recent changes"
-                  title={projection.recentChanges.length ? "Meaningful organizer history" : "No recent recorded changes"}
-                  description="Recent authoritative audit activity for this edition."
+                  title={projection.recentChanges.length ? "Recent changes" : "No recent changes"}
                   action={
                     <Link to="/admin/more" className="text-xs font-semibold text-sky-100">
                       Audit & tools →
@@ -324,9 +346,7 @@ function OrganizerOverview() {
 
               <AdminCard>
                 <AdminCardHeader
-                  eyebrow="Domains"
-                  title="Operational state"
-                  description="Quiet summaries stay quiet; problems link directly to the domain that owns them."
+                  title="Domains"
                 />
                 <div className="grid gap-2 sm:grid-cols-2">
                   {Object.entries(projection.domains).map(([key, domain]) => (
@@ -334,10 +354,11 @@ function OrganizerOverview() {
                   ))}
                 </div>
               </AdminCard>
-            </section>
+              </section>
+            </details>
 
-            <p className="mt-4 text-[10px] text-muted-foreground">
-              Authoritative refresh {new Date(projection.serverTime).toLocaleString()} · projection {projection.stateVersion}
+            <p className="admin-overview-version mt-4 text-[10px] text-muted-foreground">
+              Updated {new Date(projection.serverTime).toLocaleString()} · version {projection.stateVersion}
             </p>
           </>
         )}
@@ -381,7 +402,7 @@ function ReadinessGroup({
   tone: "blocked" | "attention" | "ready";
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+    <div className="admin-overview-readiness-group rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-bold text-foreground">{title}</p>
         <AdminStatus tone={tone}>{items.length}</AdminStatus>
@@ -392,7 +413,7 @@ function ReadinessGroup({
             <Link
               key={item.id}
               to={item.route as any}
-              className="block rounded-lg border border-white/[0.06] bg-white/[0.018] p-2.5 transition hover:bg-white/[0.04]"
+              className="admin-overview-readiness-item block rounded-lg border border-white/[0.06] bg-white/[0.018] p-2.5 transition hover:bg-white/[0.04]"
             >
               <span className="block text-xs font-semibold text-foreground">{item.label}</span>
               <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{item.detail}</span>
@@ -419,7 +440,7 @@ function DomainCard({ domain }: { domain: V3OrganizerDomainSummary }) {
   return (
     <Link
       to={(domain.recommendedAction?.route ?? domain.primaryRoute) as any}
-      className="rounded-xl border border-white/[0.07] bg-white/[0.022] p-3 transition hover:border-white/[0.14] hover:bg-white/[0.04]"
+      className="admin-overview-domain-row rounded-xl border border-white/[0.07] bg-white/[0.022] p-3 transition hover:border-white/[0.14] hover:bg-white/[0.04]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

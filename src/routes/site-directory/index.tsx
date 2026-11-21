@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parsePublicDirectoryUrlSearch } from "@/lib/v3-directory-url-search";
 
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 import { publicSearchText } from "@/lib/public-navigation";
@@ -6,10 +7,12 @@ import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import {
   siteDirectoryDestinations,
   SITE_DIRECTORY_AREA_LABELS,
+  SITE_DIRECTORY_AREA_DESCRIPTIONS,
   SITE_DIRECTORY_AREA_ORDER,
 } from "@/lib/v3-site-directory";
 
 export const Route = createFileRoute("/site-directory/")({
+  validateSearch: parsePublicDirectoryUrlSearch,
   head: () => ({
     meta: [
       { title: "All Solaris pages — Solaris Studio" },
@@ -23,6 +26,7 @@ const ALL_PAGES = siteDirectoryDestinations({ releaseOnly: GLOBAL_MAINTENANCE_MO
 const GROUPS: V3DirectoryGroup[] = SITE_DIRECTORY_AREA_ORDER.map((area) => ({
   id: area,
   label: SITE_DIRECTORY_AREA_LABELS[area],
+  description: SITE_DIRECTORY_AREA_DESCRIPTIONS[area],
   items: ALL_PAGES.filter((item) => item.area === area).map((item) => ({
     id: item.id,
     title: item.label,
@@ -35,8 +39,12 @@ const GROUPS: V3DirectoryGroup[] = SITE_DIRECTORY_AREA_ORDER.map((area) => ({
 })).filter((group) => group.items.length > 0);
 
 function SiteDirectoryPage() {
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   return (
     <V3DirectoryFamilyIndex
+      urlSearch={urlSearch}
+      onUrlSearchChange={(next) => { void navigate({ search: next, replace: true }); }}
       variant="sitemap"
       title={GLOBAL_MAINTENANCE_MODE ? "Available Solaris pages" : "All Solaris pages"}
       eyebrow="FIND YOUR WAY"

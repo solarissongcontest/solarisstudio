@@ -13,3 +13,19 @@ export type DirectoryCounts = {
 export function directoryCountLabel({ available, matches, rendered, noun }: DirectoryCounts): string {
   return `Showing ${rendered} of ${matches} matches · ${available} ${noun} total`;
 }
+
+
+/**
+ * When server-owned rollout removes a category during the visit, do not keep
+ * filtering by an obsolete category ID while the controls claim "All".
+ * The directory never needs to render forbidden links to recover navigation.
+ */
+export function resolveDirectoryScope(
+  requested: string,
+  availableGroups: readonly { id: string }[],
+): string {
+  if (requested === "all") return "all";
+  return availableGroups.some((group) => group.id === requested)
+    ? requested
+    : "all";
+}

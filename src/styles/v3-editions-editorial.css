@@ -1,0 +1,189 @@
+/*
+ * Published Editions archive.
+ * A chronological editorial list uses the current canonical editions/result
+ * projection without additional queries or invented historical identities.
+ * The installed PWA's grouped rows remain unchanged.
+ */
+html:not([data-solaris-app]) .v3-editions-directory {
+  --v3-edition-rule: color-mix(in oklab, var(--foreground) 15%, transparent);
+  --v3-edition-accent: color-mix(in oklab, var(--primary) 76%, white);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-feature {
+  position: relative;
+  overflow: clip;
+  min-height: 13rem;
+  padding: clamp(1.3rem, 3vw, 2.5rem);
+  border: 1px solid color-mix(in oklab, var(--primary) 27%, var(--border));
+  border-radius: clamp(1rem, 2.2vw, 1.5rem);
+  background:
+    radial-gradient(ellipse at 100% -10%, color-mix(in oklab, var(--primary) 17%, transparent), transparent 65%),
+    linear-gradient(135deg, var(--surface), var(--background));
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-feature h2 {
+  max-width: 24ch;
+  font-size: clamp(1.7rem, 3.5vw, 3.4rem);
+  font-weight: 790;
+  line-height: 1.09;
+  letter-spacing: -.045em;
+  text-wrap: balance;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-feature-meta {
+  gap: .65rem 1.25rem;
+  padding-top: clamp(.8rem, 2vw, 1.4rem);
+  border-color: var(--v3-edition-rule);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-feature:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-row {
+  gap: 1rem;
+  min-height: 5.6rem;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-number {
+  flex: 0 0 2.8rem;
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  place-items: center;
+  border-radius: .75rem;
+  background: color-mix(in oklab, var(--primary) 11%, var(--surface));
+  color: var(--foreground);
+  font-size: 1.1rem;
+  font-weight: 790;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.055em;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-row > span:nth-child(2) > span {
+  line-height: 1.45;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-mobile-row .numeric {
+  font-variant-numeric: tabular-nums;
+}
+html:not([data-solaris-app]) .v3-editions-directory[data-directory-experience="desktop-web"] .v3-editions-timeline {
+  display: block;
+  grid-template-columns: none;
+  min-width: 0;
+  margin: .7rem 0 0 1rem;
+  padding: 0;
+  border-left: 1px solid var(--v3-edition-rule);
+  list-style: none;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-item {
+  position: relative;
+  min-width: 0;
+  padding-left: clamp(1rem, 2vw, 1.5rem);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-item::before {
+  position: absolute;
+  top: 2.15rem;
+  left: -.37rem;
+  display: block;
+  width: .7rem;
+  height: .7rem;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: var(--background);
+  content: "";
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-item + li {
+  border-top: 1px solid var(--v3-edition-rule);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-link {
+  display: grid;
+  grid-template-columns: minmax(5rem,6.25rem) minmax(0,1.2fr) minmax(10rem,1fr) 1.25rem;
+  align-items: center;
+  gap: clamp(.8rem, 2vw, 1.6rem);
+  min-height: 7.75rem;
+  padding: 1.1rem .6rem 1.1rem .4rem;
+  border: 0;
+  border-radius: .35rem;
+  background: transparent;
+  box-shadow: none;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-link:hover {
+  border: 0;
+  background: color-mix(in oklab, var(--surface) 65%, transparent);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-date {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  color: var(--muted-foreground);
+  font-size: .76rem;
+  font-variant-numeric: tabular-nums;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-date .v3-directory-eyebrow {
+  font-size: .69rem;
+  font-weight: 760;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-heading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: .45rem;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-heading strong {
+  overflow-wrap: anywhere;
+  font-size: clamp(1.05rem, 1.8vw, 1.55rem);
+  font-weight: 760;
+  letter-spacing: -.035em;
+  line-height: 1.2;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-heading > span {
+  font-size: .78rem;
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-details {
+  display: grid;
+  min-width: 0;
+  gap: .45rem;
+  font-size: .79rem;
+  color: var(--muted-foreground);
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-details > span {
+  min-width: 0;
+  line-height: 1.5;
+}
+html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-chevron {
+  color: var(--primary);
+}
+@media (max-width: 1180px) {
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-link {
+    grid-template-columns: 5rem minmax(0,1fr) 1.25rem;
+    gap: .9rem;
+  }
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-details {
+    grid-column: 2;
+    grid-row: 2;
+    margin-top: -.6rem;
+  }
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-chevron {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+@media (max-width: 767px) {
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-feature {
+    min-height: 10.5rem;
+    padding: 1.15rem;
+  }
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-feature h2 {
+    font-size: clamp(1.6rem, 6vw, 2.4rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-link,
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-feature {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  html:not([data-solaris-app]) .v3-editions-directory .v3-editions-timeline-item::before {
+    border-color: Highlight;
+  }
+}

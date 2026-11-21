@@ -59,6 +59,99 @@ for (const route of publicRouteAuditSet) {
   });
 }
 
+test("Country History web search uses only published rows and preserves desktop/mobile layout", async ({ page, baseURL }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  if (!process.env.E2E_SUPABASE_URL) throw new Error("Local Supabase required for Country History browser audit.");
+  const target = new URL(process.env.E2E_SUPABASE_URL);
+  if (target.protocol !== "http:" ||
+      !["127.0.0.1", "localhost", "[::1]", "::1"].includes(target.hostname) ||
+      target.username || target.password || !target.port) {
+    throw new Error("Country History screenshot audit refuses hosted Supabase.");
+  }
+
+  const routes = await sitemapRoutes(baseURL!);
+  const country = routes.find((route) => /^\/countries\/[^/]+$/.test(route));
+  expect(country, "Need a seeded published Country").toBeTruthy();
+  await page.goto(country!, { waitUntil: "domcontentloaded" });
+  const sections = page.getByRole("navigation", { name: "Country sections" });
+  await expect(sections).toBeVisible({ timeout: 15_000 });
+  await sections.getByRole("button", { name: "History", exact: true }).click();
+  await expect(page).toHaveURL(/#country-history$/);
+  await expect(page.getByRole("region", { name: "Published country history" })).toBeVisible();
+  const search = page.getByRole("searchbox", { name: "Search published entries" });
+  const outcome = page.getByRole("combobox", { name: "Result" });
+  await expect(search).toBeVisible();
+  await expect(outcome).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /published entries/ })).toBeVisible();
+  await search.fill("solaris-no-such-published-artist-zz");
+  await expect(page.getByRole("status").filter({ hasText: /0 of \d+ published entries/ })).toBeVisible();
+  await search.clear();
+  await outcome.selectOption("finalist");
+  await outcome.selectOption("all");
+
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Country History should not overflow ordinary browser").toBeLessThanOrEqual(2);
+  await testInfo.attach(`country-history-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true, animations: "disabled", caret: "hide" }),
+    contentType: "image/png",
+  });
+  await sections.getByRole("button", { name: "Overview", exact: true }).click();
+  await page.goBack();
+  await expect(page).toHaveURL(/#country-history$/);
+});
+
+test("published Country and Edition use continuous cinematic browser heroes with no installed dock", async ({ page, baseURL }, testInfo) => {
+  const auditWidths = process.env.E2E_FULL_AUDIT === "1"
+    ? ["public-320", "public-390", "public-430", "public-768", "public-1024", "public-1440"]
+    : ["public-390", "public-1440"];
+  test.skip(!auditWidths.includes(testInfo.project.name));
+  if (!process.env.E2E_SUPABASE_URL) throw new Error("Missing local E2E_SUPABASE_URL: refusing screenshot audit.");
+  const target = new URL(process.env.E2E_SUPABASE_URL);
+  if (target.protocol !== "http:" ||
+      !["127.0.0.1", "localhost", "[::1]", "::1"].includes(target.hostname) ||
+      target.username || target.password || !target.port) {
+    throw new Error("Cinematic screenshot audit requires isolated loopback Supabase.");
+  }
+
+  const discovered = await sitemapRoutes(baseURL!);
+  const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
+  const edition = discovered.find((route) => /^\/editions\/[^/]+$/.test(route));
+  expect(country, "Seeded sitemap needs a published Country").toBeTruthy();
+  expect(edition, "Seeded sitemap needs a published Edition").toBeTruthy();
+
+  await page.goto(country!, { waitUntil: "domcontentloaded" });
+  const countryHero = page.locator('[data-country-web-experience="editorial"]');
+  await expect(countryHero).toBeVisible({ timeout: 15_000 });
+  await expect(countryHero.locator('[data-cinematic-entity="country"]')).toBeVisible();
+  await expect(page.locator(".country-editorial-identity-strip")).toBeVisible();
+  await expect(page.locator(".country-editorial-section-nav")).toBeVisible();
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCount(0);
+  await expect(page.locator("html")).not.toHaveAttribute("data-solaris-app", "");
+  await expect(page.locator("h1")).toHaveCount(1);
+  await testInfo.attach(`country-cinematic-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true, animations: "disabled", caret: "hide" }),
+    contentType: "image/png",
+  });
+
+  await page.goto(edition!, { waitUntil: "domcontentloaded" });
+  const editionHero = page.locator('[data-edition-web-experience="editorial"]');
+  await expect(editionHero).toBeVisible({ timeout: 15_000 });
+  await expect(editionHero.locator('[data-cinematic-entity="edition"]')).toBeVisible();
+  await expect(page.locator(".edition-navigation-editorial")).toBeVisible();
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCount(0);
+  await expect(page.locator("h1")).toHaveCount(1);
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Cinematic Edition must stay inside the normal browser viewport").toBeLessThanOrEqual(2);
+  await testInfo.attach(`edition-cinematic-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true, animations: "disabled", caret: "hide" }),
+    contentType: "image/png",
+  });
+});
+
 test("real Country and Wiki pages pass collision and flag audits at this viewport", async ({ page, baseURL }, testInfo) => {
   const discovered = await sitemapRoutes(baseURL!);
   const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
@@ -321,47 +414,41 @@ test("Stories and Reference preserve editorial mobile-web and desktop discovery"
   });
 });
 
-test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
+test("Country cinematic media, Wiki Glass and Edition editorial controls respect the viewport", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
-  test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
+  test.skip(process.env.E2E_REAL_DATA !== "1", "This archive-specific test requires isolated locally seeded real-format data.");
 
   await page.goto("/countries/ABE", { waitUntil: "domcontentloaded" });
-  const atmosphere = page.locator(".country-v2-liquid-glass-scene-flag");
-  await expect(atmosphere).toBeVisible();
-  const coverage = await atmosphere.evaluate((image) => {
-    const hero = image.closest(".country-v2-hero")!.getBoundingClientRect();
-    const flag = image.getBoundingClientRect();
-    return { left: flag.left - hero.left, right: flag.right - hero.right, top: flag.top - hero.top, bottom: flag.bottom - hero.bottom, fit: getComputedStyle(image).objectFit };
+  const country = page.locator('[data-country-web-experience="editorial"]');
+  await expect(country).toBeVisible();
+  await expect(country.locator('[data-cinematic-entity="country"]')).toBeVisible();
+  await expect(page.locator(".country-editorial-identity-strip")).toBeVisible();
+  await expect(page.locator(".country-editorial-section-nav")).toBeVisible();
+  await expect(page.locator('html')).not.toHaveAttribute("data-solaris-app", "");
+  await testInfo.attach("abeven-country-cinematic.png", {
+    body: await country.screenshot({ animations: "disabled" }), contentType: "image/png",
   });
-  expect(coverage.left).toBeLessThan(-20);
-  expect(coverage.right).toBeGreaterThan(20);
-  expect(coverage.top).toBeLessThan(-20);
-  expect(coverage.bottom).toBeGreaterThan(20);
-  expect(coverage.fit).toBe("cover");
-  await testInfo.attach("abeven-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
 
   await page.goto("/wiki/ABE", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "breadcrumb" })).toHaveCount(1);
-  await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+  await testInfo.attach("abeven-wiki-glass.png", {
+    body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png",
+  });
 
   await page.goto("/editions/ssc-20", { waitUntil: "domcontentloaded" });
   const edition = page.locator(".edition-public-page");
   await expect(edition.locator("h1")).toHaveText("SSC 20");
-  await expect(edition.locator(".edition-hero-subtitle")).toHaveCount(0);
-  await expect(edition.locator(".public-current-status")).toHaveCount(0);
-  if (["public-320", "public-390"].includes(testInfo.project.name)) {
-    const nav = edition.locator(".edition-navigation-mobile");
-    await expect(nav).toBeVisible();
-    const dimensions = await nav.evaluate((element) => {
-      const parent = element.getBoundingClientRect();
-      const controls = [...element.children].map((child) => child.getBoundingClientRect());
-      return { clipped: controls.some((rect) => rect.left < parent.left - 1 || rect.right > parent.right + 1), overflow: document.documentElement.scrollWidth - window.innerWidth };
-    });
-    expect(dimensions.clipped).toBe(false);
-    expect(dimensions.overflow).toBeLessThanOrEqual(1);
-  }
-  await testInfo.attach("ssc20-hero.png", { body: await page.locator(".edition-hero").screenshot(), contentType: "image/png" });
+  await expect(edition.locator('[data-edition-web-experience="editorial"]')).toBeVisible();
+  await expect(edition.locator(".edition-navigation-editorial")).toBeVisible();
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(2);
+  await testInfo.attach("ssc20-cinematic-hero.png", {
+    body: await edition.locator('[data-edition-web-experience="editorial"]').screenshot({ animations: "disabled" }),
+    contentType: "image/png",
+  });
 });
 
 test("wide square and tall flag fixtures fill consistent 3:2 frames without distortion", async ({ page }, testInfo) => {
