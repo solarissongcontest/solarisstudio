@@ -63,7 +63,9 @@ describe("Organizer hidden-page preview", () => {
     expect(await verifyAdminPagePreviewToken(token, config, failClosed as typeof fetch)).toBe(false);
     expect(await verifyAdminPagePreviewToken("not-a-token", config, failClosed as typeof fetch)).toBe(false);
     expect(await verifyAdminPagePreviewToken(token, { ...config, publishableKey: "" }, failClosed as typeof fetch)).toBe(false);
-    expect(failClosed).not.toHaveBeenCalled();
+    // The valid-looking token reaches the verifier once and fails closed on network error.
+    // The malformed token and absent API key must fail before making a request.
+    expect(failClosed).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the Worker HTTP gate and excludes maintenance and write transports", () => {
