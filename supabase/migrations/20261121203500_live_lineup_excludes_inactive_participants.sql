@@ -474,6 +474,39 @@ revoke all on function public.admin_add_show_jury(uuid, text, uuid, text, text, 
 grant execute on function public.admin_add_show_jury(uuid, text, uuid, text, text, text)
   to authenticated, service_role;
 
+-- Do not reintroduce an inactive edition country through a stale
+-- show-import path. Only active editions are restricted.
+create or replace function private.v3_reject_inactive_show_participant_insert()
+returns trigger language plpgsql security definer
+set search_path = pg_catalog, public, private
+as $trigger$
+begin
+  if new.show_id is not null
+     and exists (select 1 from public.editions e where e.id = new.edition_id and e.status = 'active')
+     and exists (
+       select 1 from public.participants p
+       where p.edition_id = new.edition_id
+         and p.show_id is null
+         and p.participation_status in ('withdrawn', 'disqualified')
+         and (
+           (new.country_id is not null and p.country_id = new.country_id)
+           or (new.country_id is null and new.contest_entity_id is not null
+               and p.contest_entity_id = new.contest_entity_id)
+         )
+     )
+  then raise exception 'Restore this country to Active before adding it to a show'
+       using errcode = '23514';
+  end if;
+  return new;
+end;
+$trigger$;
+revoke all on function private.v3_reject_inactive_show_participant_insert()
+  from public, anon, authenticated, service_role;
+drop trigger if exists v3_reject_inactive_show_participant_insert on public.participants;
+create trigger v3_reject_inactive_show_participant_insert
+  before insert on public.participants
+  for each row execute function private.v3_reject_inactive_show_participant_insert();
+
 -- S13 adoption: forward-only contract, no historic ballots or participant
 -- evidence deleted. Inactive rows are excluded from live scopes only.
 select public.v3_register_migration_contract(
