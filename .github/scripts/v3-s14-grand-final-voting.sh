@@ -28,7 +28,7 @@ run_s14_grand_final_voting() {
   log "Grand-final leg: run canonical Jury and public Televote against the qualified final lineup"
 
   [[ "$(db_scalar "select count(*) from public.participants where show_id='$FINAL_ID'::uuid and qualified is true;")" == "20" ]] || fail "Grand Final voting requires exactly 20 canonical qualified participants"
-  [[ "$(db_scalar "select count(*) from public.voters where show_id='$FINAL_ID'::uuid;")" == "66" ]] || fail "Grand Final voting requires the prepared 66-delegation Jury roster"
+  [[ "$(db_scalar "select count(*) from public.voters where show_id='$FINAL_ID'::uuid;")" == "65" ]] || fail "Grand Final voting requires the 65 eligible-delegation Jury roster"
   [[ "$(db_scalar "select count(*) from televoting.round_entries where round_id='$S14_FINAL_TELEVOTE_ROUND_ID'::uuid;")" == "20" ]] || fail "Grand Final voting requires the prepared 20-entry Televote round"
 
   sign_in 's14-organizer-a@solaris.invalid'
@@ -38,6 +38,9 @@ run_s14_grand_final_voting() {
 
   final_jury_total=0
   for i in $(seq 1 66); do
+    # Country 04 withdrew before the semi-final voting. It cannot vote in
+    # the Grand Final either, regardless of previous roster membership.
+    if (( i == 4 )); then continue; fi
     index="$(printf '%02d' "$i")"
     suffix="$(printf '%012d' "$i")"
     country_id="14000000-0000-4000-8000-$suffix"
@@ -72,9 +75,9 @@ run_s14_grand_final_voting() {
     final_jury_total=$((final_jury_total + 1))
   done
 
-  [[ "$final_jury_total" == "66" ]] || fail "Grand Final Jury submitted $final_jury_total ballots instead of 66"
-  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='submitted';")" == "66" ]] || fail "Grand Final canonical Jury submission count is not 66"
-  [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$FINAL_ID'::uuid;")" == "660" ]] || fail "Grand Final Jury score rows are not 66 complete ten-score ballots"
+  [[ "$final_jury_total" == "65" ]] || fail "Grand Final Jury submitted $final_jury_total ballots instead of 65"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='submitted';")" == "65" ]] || fail "Grand Final canonical Jury submission count is not 65"
+  [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$FINAL_ID'::uuid;")" == "650" ]] || fail "Grand Final Jury score rows are not 65 complete ten-score ballots"
   [[ "$(db_scalar "select count(*) from (select voter_country_id,count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid group by voter_country_id having count(*)>1) duplicates;")" == "0" ]] || fail "Grand Final contains duplicate final Jury ballots"
   [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$FINAL_ID'::uuid and voter_country_id=receiving_country_id;")" == "0" ]] || fail "Grand Final own-country Jury vote survived canonical validation"
 
