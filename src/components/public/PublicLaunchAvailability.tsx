@@ -93,12 +93,13 @@ function LimitedPublicLaunchAvailabilityProvider({ children }: { children: React
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
-  const adminPreview = Boolean(actor) && organizer.isSuccess &&
-    !organizer.isFetching && organizer.data === true;
+  // Retain a confirmed Organizer view during same-actor background checks.
+  // A failed/revoked response or an account switch immediately withdraws it.
+  const adminPreview = Boolean(actor) && organizer.isSuccess && organizer.data === true;
   return (
     <PublicLaunchContext.Provider value={{
       active: true, flags: {}, adminPreview,
-      checking: Boolean(actor) && (organizer.isPending || organizer.isFetching),
+      checking: Boolean(actor) && organizer.isPending,
       error: Boolean(actor) && organizer.isError,
       retry: () => { void organizer.refetch(); },
     }}>
