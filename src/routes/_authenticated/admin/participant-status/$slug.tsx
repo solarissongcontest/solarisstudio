@@ -21,6 +21,7 @@ import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import {
   participationStatus,
   participationStatusLabel,
+  participationStatusCommandSubject,
   type ParticipationAwareParticipant,
   type ParticipationStatus,
 } from "@/lib/participation-status";
@@ -105,8 +106,7 @@ function ParticipantStatusWorkspace() {
           key,
           rows,
           status,
-          countryId: global ? sample.country_id : null,
-          contestEntityId: global ? sample.contest_entity_id : (sample.contest_entity_id ?? sample.country_id),
+          ...participationStatusCommandSubject(sample, global),
         };
       })
       .sort((a, b) => {
@@ -155,7 +155,7 @@ function ParticipantStatusWorkspace() {
           p_status: status,
         },
       );
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Participation impact preview failed");
 
       const preview = data as ParticipationStatusPreview;
       if (preview.editionId !== commandEditionId) {
@@ -203,7 +203,7 @@ function ParticipantStatusWorkspace() {
           p_expected_version: pending.preview.expectedVersion,
         },
       );
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Participation status update failed");
 
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["participants"] }),
