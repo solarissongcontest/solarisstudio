@@ -33,6 +33,8 @@ export type ConfirmationProjectionVerificationIssue = {
   code:
     | "unmatched_country"
     | "missing_entry"
+    | "accepted_selection_missing_projection"
+    | "accepted_selection_pending_projection"
     | "entry_submission_provenance"
     | "entry_status"
     | "entry_artist"
@@ -364,21 +366,6 @@ export async function verifyConfirmationEditionProjectionWithDatabase(
     }
     expectedCountryIds.add(country.id);
 
-    const entry = entryByCountry.get(country.id);
-    if (!entry) {
-      issues.push({
-        code: "missing_entry",
-        submissionId: submission.id,
-        country: submission.country,
-      });
-      continue;
-    }
-
-    if (entry.source !== "confirmations") {
-      canonicalOwnedOutsideConfirmations += 1;
-      continue;
-    }
-
     let officialEntry: any = null;
     if (submission.selection_method === "internal") {
       const candidate = internalBySubmission.get(submission.id);
@@ -402,6 +389,23 @@ export async function verifyConfirmationEditionProjectionWithDatabase(
       ) {
         officialEntry = winner;
       }
+    }
+
+    // Determine acceptance from the authoritative method BEFORE checking the
+    // projection. A stale/missing official Entry must never be interpreted as
+    // evidence that a participant failed to submit an accepted selection.
+    const entry = entryByCountry.get(country.id);
+    if (!entry) {
+      issues.push({
+        code: officialEntry ? "accepted_selection_missing_projection" : "missing_entry",
+        submissionId: submission.id,
+        country: submission.country,
+      });
+      continue;
+    }
+    if (entry.source !== "confirmations") {
+      canonicalOwnedOutsideConfirmations += 1;
+      continue;
     }
 
     const expectedEntryStatus = submission.participating
@@ -434,7 +438,9 @@ export async function verifyConfirmationEditionProjectionWithDatabase(
     }
     if (entry.status !== expectedEntryStatus) {
       issues.push({
-        code: "entry_status",
+        code: officialEntry && entry.status === "pending"
+          ? "accepted_selection_pending_projection"
+          : "entry_status",
         submissionId: submission.id,
         country: submission.country,
         entryId: entry.id,
