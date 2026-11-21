@@ -52,7 +52,7 @@ begin
   end if;
 
   -- One statement keeps the existing statement-level result-sync batching.
-  -- Inactive rows receive NULL, never a hidden trailing order number.
+  -- Inactive rows are left untouched for history; read and voting paths exclude them.
   with desired as (
     select supplied.id, supplied.ordinality::integer as position
     from unnest(coalesce(_participant_ids, '{}'::uuid[]))
@@ -62,6 +62,7 @@ begin
      set running_order = (select d.position from desired d where d.id = p.id),
          updated_at = now()
    where p.show_id = _show_id
+     and coalesce(p.participation_status,'confirmed') = 'confirmed'
      and p.running_order is distinct from (select d.position from desired d where d.id = p.id);
 end;
 $function$;
@@ -120,6 +121,7 @@ begin
      set running_order_allocation = (select d.allocation from desired d where d.id = p.id),
          updated_at = now()
    where p.show_id = _show_id
+     and coalesce(p.participation_status,'confirmed') = 'confirmed'
      and p.running_order_allocation is distinct from (select d.allocation from desired d where d.id = p.id);
 end;
 $function$;
