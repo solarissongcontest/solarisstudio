@@ -46,6 +46,7 @@ import {
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
+import { isCompetingParticipant } from "@/lib/participation-status";
 
 type LineupStage = "lineup" | "allocation" | "running_order";
 type Allocation = "first_half" | "second_half" | "producer_choice";
@@ -126,7 +127,12 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   }, [orderedShows, initialShow, showId]);
 
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
-  const lifecycleParticipants = showParticipants as LifecycleParticipant[];
+  // Status changes preserve show membership for audit/history, but withdrawn
+  // and disqualified countries must not occupy a live allocation/order slot.
+  const lifecycleParticipants = useMemo(
+    () => (showParticipants as LifecycleParticipant[]).filter(isCompetingParticipant),
+    [showParticipants],
+  );
   const alphaParticipants = useMemo(
     () => [...lifecycleParticipants].sort((a, b) => {
       const aName = displayMap.get(participantKey(a))?.name ?? "";
@@ -157,7 +163,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     return [...ordered, ...missing];
   }, [lifecycleParticipants, runningOrderDraft]);
   const displayedParticipants = stage === "running_order" ? runningDraftParticipants : alphaParticipants;
-  const presentKeys = useMemo(() => new Set(lifecycleParticipants.map(participantKey)), [lifecycleParticipants]);
+  const presentKeys = useMemo(() => new Set((showParticipants as LifecycleParticipant[]).map(participantKey)), [showParticipants]);
   const customEntities = useMemo(() => entities.filter((entity) => entity.entity_type === "custom"), [entities]);
   const missingDetailCount = lifecycleParticipants.filter((participant) => !participant.artist || !participant.song).length;
   const allocationValue = (participant: LifecycleParticipant) =>
