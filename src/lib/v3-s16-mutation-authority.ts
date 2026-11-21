@@ -251,6 +251,9 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalOwner: "jury domain",
     canonicalCommands: [
       "v3_submit_jury_ballot",
+      // Both official methods share the same show/country lock and canonical
+      // vote/result authority; this is not a second uncontrolled writer.
+      "v3_organizer_jury_score_apply",
       "studio2_apply_jury_voting_status",
     ],
     sanctionedInternalWriters: [
@@ -259,6 +262,9 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     // V3 receipt/operation wrapper is the only participant entry point.
     // Keep this helper for its trusted in-function call, not direct RPC.
     directRpcDeniedInternalWriters: ["submit_country_jury_ballot"],
+    // Denial-only row trigger protects the accepted account receipt. DNV
+    // guard remains part of the governed Jury state transition authority.
+    sanctionedWriteTriggers: ["v3_jury_protect_submitted_vote"],
   },
   {
     id: "confirmation",
