@@ -2,14 +2,14 @@
 
 **Status:** proposed consolidated, actively maintained design authority for V3.  
 **Scope:** all user-visible Public, Fan, Participant, MySolaris/Delegation, World and Organizer layouts.  
-**Source precedence:** this document consolidates the 19 November 2026 visual/UX audit and Country/Edition cinematic redesign, the three-experience manifesto, the Public design/navigation completion plan and the page-by-page directory plan. Their original full versions are preserved in \`docs/v3/archive/\` as **historical input, not parallel active design instructions**.
+**Source precedence:** this document consolidates the 19 November 2026 visual/UX audit and Country/Edition cinematic redesign, the three-experience manifesto, the Public design/navigation completion plan and the page-by-page directory plan. Their original full versions are preserved in `docs/v3/archive/` as **historical input, not parallel active design instructions**.
 
 > **One visual feature, one design owner.** Do not implement the same Country hero, Edition layout, directory filter, header or page family from a competing historical guide. When a missing design requirement is discovered in the archive, reconcile it here through a reviewed change rather than reactivating the archive as a second authority.
 
 ## 1. Hard boundaries and precedence
 
 1. Production safety, canonical data ownership, privacy, authorization, integrity, accessibility and official publication rules override all visual effects.
-2. This file owns **product composition, visual grammar, page-level hierarchy, responsive presentation and visual acceptance**. \`NAVIGATION.md\` owns floating dock geometry, gestures and system safe zones. \`SYSTEM.md\` owns canonical state and mutations. \`WORLD.md\` owns fictional governance and official world facts. \`ORGANIZER.md\` owns operational behavior.
+2. This file owns **product composition, visual grammar, page-level hierarchy, responsive presentation and visual acceptance**. `NAVIGATION.md` owns floating dock geometry, gestures and system safe zones. `SYSTEM.md` owns canonical state and mutations. `WORLD.md` owns fictional governance and official world facts. `ORGANIZER.md` owns operational behavior.
 3. Public top-level destinations remain **Home · Explore · Participate · Results · Me**; Organizer remains **Overview · Tasks · Control · Live · More**. Do not invent extra root navigation to solve page-level complexity.
 4. A source-backed route being implemented, integrated or cut over does **not** establish visual parity or release certification.
 5. The approved direction is **Cinematic Editorial Solaris**. Preserve the recognizable dark Solaris identity and coherent light appearance without copying any external site's proprietary assets or code.
@@ -75,7 +75,7 @@ Use existing responsible components/hooks rather than a new parallel design fram
 - Keep meaningful text and controls entirely below the effective safe content boundary. Nonessential background/artwork may extend behind system chrome.
 - The installed dock is shell-owned. Maintain scrolling clearance for the last item, keyboard, safe area, focus and sheet controls.
 - Normal browser must not show duplicate app dock and web site navigation.
-- Bottom bar geometry, selected lens, minimization, drag/swipe arbitration, reduced-motion alternatives and exact safe-zone calculations are specified **only in \`NAVIGATION.md\`**.
+- Bottom bar geometry, selected lens, minimization, drag/swipe arbitration, reduced-motion alternatives and exact safe-zone calculations are specified **only in `NAVIGATION.md`**.
 - Preserve native web back/forward/share/deep link semantics where applicable.
 - Do not make drag or swipe the only way to operate a feature.
 - Every interactive control gets a clear focus state and comfortable tap size (normally at least about 44 CSS px for primary touch targets).
@@ -188,4 +188,4 @@ This active file replaces the design-authority portions of the following archive
 - Updated Public Product, Design & Navigation Completion Master Plan.
 - Full Specific V3 Page Design Plan.
 
-These historical files are retained in \`docs/v3/archive/\` to preserve full detail and provenance. **They must not be implemented as independent competing design guides.** Where a historically specified required capability is missing from this consolidated file, open a scoped reconciliation and amend this one source, respecting canonical System/Public/Organizer/World authorities. Earlier plans are not permission to reintroduce superseded visual compositions.
+These historical files are retained in `docs/v3/archive/` to preserve full detail and provenance. **They must not be implemented as independent competing design guides.** Where a historically specified required capability is missing from this consolidated file, open a scoped reconciliation and amend this one source, respecting canonical System/Public/Organizer/World authorities. Earlier plans are not permission to reintroduce superseded visual compositions.
