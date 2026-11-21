@@ -152,7 +152,7 @@ describe("final UI completion contracts", () => {
     expect(confirmationShell).toContain("<ParticipationRouteChrome>");
     expect(confirmationShell).toContain("<ParticipationServiceShell");
     expect(confirmationShell).toContain("rollout.isError || rollout.data?.confirmationEnabled !== true");
-    expect(jury).toContain("Solaris found an unusual pattern");
+    expect(jury).toContain("voterIntegrityMessage(report.interventionLevel)");
     expect(jury).not.toContain("Your jury ballot was automatically flagged");
   });
 
