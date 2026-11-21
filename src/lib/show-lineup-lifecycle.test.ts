@@ -43,6 +43,11 @@ describe("show line-up lifecycle", () => {
     expect(workspace).toContain("No running order exists yet.");
   });
 
+  it("excludes historical inactive show rows from editable active allocation and order", () => {
+    expect(workspace).toContain("(showParticipants as LifecycleParticipant[]).filter(isCompetingParticipant)");
+    expect(workspace).toContain("(showParticipants as LifecycleParticipant[]).map(participantKey)");
+  });
+
   it("requires allocation completion before running order starts", () => {
     expect(workspace).toContain("const allocationComplete = lifecycleParticipants.length > 0 && allocatedCount === lifecycleParticipants.length");
     expect(workspace).toContain("if (!activeShow || !allocationComplete) return");
