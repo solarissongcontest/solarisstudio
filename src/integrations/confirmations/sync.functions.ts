@@ -346,7 +346,7 @@ async function syncConfirmationSnapshotToSolarisInternal(
   const intendedCanonicalStatus = snapshot.participating ? "confirmed" : "withdrawn";
   const canonicalGuard = await db
     .from("entries")
-    .select("id,source,status,updated_at")
+    .select("id,source,status,artist,song_title,updated_at")
     .eq("edition_id", edition.id)
     .eq("country_id", country.id)
     .maybeSingle();
@@ -366,10 +366,11 @@ async function syncConfirmationSnapshotToSolarisInternal(
     return result;
   }
 
-  // A published Entry/participant is not an ordinary Confirmation projection
-  // target. This check must happen before creating entities, altering any
-  // participant status or clearing a previously published song. Publication
-  // corrections are handled by the separately governed Organizer workflow.
+  // A published *entry* is not an ordinary Confirmation projection target.
+  // Participation may be announced before the song is accepted, so publishing
+  // the participant alone must NOT block the first legitimate accepted Entry.
+  // The guard runs before creating entities or mutating any participant/Entry.
+  // Later publication corrections require the governed Organizer workflow.
   const publishedParticipant = await db
     .from("participants")
     .select("id")
@@ -378,7 +379,12 @@ async function syncConfirmationSnapshotToSolarisInternal(
     .eq("publication_status", "published")
     .limit(1);
   if (publishedParticipant.error) throw new Error(publishedParticipant.error.message);
-  if (canonicalGuard.data?.status === "published" || (publishedParticipant.data?.length ?? 0) > 0) {
+  const officialEntryAlreadyPresent =
+    Boolean(cleanText(canonicalGuard.data?.artist) && cleanText(canonicalGuard.data?.song_title));
+  if (
+    canonicalGuard.data?.status === "published" ||
+    ((publishedParticipant.data?.length ?? 0) > 0 && officialEntryAlreadyPresent)
+  ) {
     const result: ConfirmationSolarisSyncResult = {
       ok: false,
       status: "publication_locked",
