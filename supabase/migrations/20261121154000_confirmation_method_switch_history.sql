@@ -85,12 +85,29 @@ begin
       where nf.submission_id = existing.id
         and coalesce(nf.results_published, false)
     )
+    -- A show assignment alone is not a competition lock: the S14 setup
+    -- assigns participants to *unpublished* shows before Entry submission.
+    -- Protect public Entry publication itself, a published country record,
+    -- and a participant in an actually published show instead.
+    or exists (
+      select 1 from public.entries e
+      join public.countries c on c.id = e.country_id
+      where e.edition_id = r.edition_id
+        and lower(btrim(c.name)) = lower(btrim(existing.country))
+        and e.status = 'published'
+    )
     or exists (
       select 1 from public.participants p
       join public.countries c on c.id = p.country_id
       where p.edition_id = r.edition_id
         and lower(btrim(c.name)) = lower(btrim(existing.country))
-        and (p.publication_status = 'published' or p.show_id is not null)
+        and (
+          p.publication_status = 'published'
+          or exists (
+            select 1 from public.shows sh
+            where sh.id = p.show_id and sh.published
+          )
+        )
     )
   ) and (
     existing.country is distinct from coalesce(nullif(trim(payload ->> 'country'), ''), existing.country)
