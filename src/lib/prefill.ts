@@ -1,3 +1,4 @@
+import { emptySelectionSong, type SelectionSong, type SelectionSongCache } from "@/lib/confirmation-selection-switch";
 import type {
   ConfirmationPayload,
   DateType,
@@ -101,4 +102,32 @@ export function prefillFromSubmission(
     reveal_exact_date: s.reveal_exact_date ?? "",
     reveal_approximate_text: s.reveal_approximate_text ?? "",
   };
+}
+
+/** Prefill both methods, not only the currently active one. Inactive records
+ * remain private historical data and can be restored when editing switches
+ * back to that method. */
+export function prefillSelectionSongCache(s: any): SelectionSongCache {
+  const cache: SelectionSongCache = {};
+  const songFrom = (row: any): SelectionSong => ({
+    ...emptySelectionSong(),
+    artist: row?.artist ?? "",
+    song_title: row?.song_title ?? "",
+    song_url: row?.song_url ?? "",
+    credits: asCredits(row?.credits),
+    preview_start: row?.preview_start ?? "",
+    preview_end: row?.preview_end ?? "",
+    final_clip_start: row?.final_clip_start ?? "",
+    final_clip_end: row?.final_clip_end ?? "",
+    replacement_video_required: row?.replacement_video_required ?? false,
+    replacement_video_url: row?.replacement_video_url ?? "",
+  });
+  if (s?.internal_entries) cache.internal = songFrom(s.internal_entries);
+  const nf = s?.national_finals;
+  const selectedId = nf?.pending_winning_entry_id ?? nf?.winning_entry_id;
+  const selected = (nf?.national_final_entries ?? []).find(
+    (entry: { id?: string }) => entry.id === selectedId,
+  );
+  if (selected) cache.national_final = songFrom(selected);
+  return cache;
 }
