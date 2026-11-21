@@ -266,6 +266,10 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
   if (!currentRound) throw new Error("Voting round not found");
   if (currentRound.status !== "open") throw new Error("Voting round is not open");
 
+  // A ballot must never name a withdrawn/DQ country from an obsolete sync.
+  const { assertLinkedTelevoteRosterCurrent } = await import("@/integrations/televoting/participation-guard.server");
+  await assertLinkedTelevoteRosterCurrent(input.roundId);
+
   // Preserve the established successful-preflight read order and connection
   // pressure after this gate; only invalid/closed requests are short-circuited.
   const canonical = await loadCanonicalVotingContextServer();
