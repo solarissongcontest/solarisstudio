@@ -55,6 +55,35 @@ test("hidden public URLs fail closed at the Worker before app SSR", async ({ req
   }
 });
 
+for (const failure of ["disabled JavaScript", "blocked client modules"] as const) {
+  test(`Home offers native recovery with ${failure}`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ javaScriptEnabled: failure !== "disabled JavaScript", serviceWorkers: "block" });
+    // This case needs only SSR HTML. No browser request may leave the local origin.
+    await context.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin !== new URL(baseURL!).origin || route.request().resourceType() === "script") {
+        await route.abort();
+      } else await route.continue();
+    });
+    const page = await context.newPage();
+    try {
+      await page.goto(baseURL!, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("[data-v3-primary-boot]")).toBeVisible();
+      await page.getByText("Taking longer than expected?", { exact: true }).click();
+      const reload = page.getByRole("button", { name: "Reload this page" });
+      await expect(reload).toBeVisible();
+      expect(await reload.evaluate((element) => element.closest('[aria-busy="true"]') !== null)).toBe(false);
+      await Promise.all([page.waitForNavigation(), reload.click()]);
+      expect(new URL(page.url()).pathname).toBe("/");
+      expect(new URL(page.url()).search).toBe("");
+      await expect(page.locator("[data-v3-primary-boot]")).toBeVisible();
+      if (failure === "disabled JavaScript") await expect(page.getByText(/JavaScript is unavailable/)).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test("public home navigation does not advertise unpublished areas", async ({ context }) => {
   // Independent documents are essential for the installed WebKit project.
   // A second full navigation on the Home document can fail inside WebKit

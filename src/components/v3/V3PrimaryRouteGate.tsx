@@ -11,6 +11,7 @@ import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
 import { V3HomeScreen } from "./V3HomeScreen";
 import { V3ParticipateScreen } from "./V3ParticipateScreen";
+import { PrimarySurfaceRecovery } from "./PrimarySurfaceRecovery";
 
 type V3PrimarySurface = "home" | "participate";
 
@@ -20,7 +21,6 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
     <main
       className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
       data-v3-primary-boot=""
-      aria-busy="true"
     >
       <header className="border-b border-border/70 pb-5">
         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
@@ -55,9 +55,7 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
         )}
       </nav>
 
-      <p className="mt-7 max-w-xl text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
-        Opening Solaris Studio… If this page stays here, the full experience has not finished loading.
-      </p>
+      <PrimarySurfaceRecovery surface={surface} />
     </main>
   );
 }
