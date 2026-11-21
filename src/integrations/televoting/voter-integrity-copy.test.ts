@@ -5,6 +5,7 @@ import {
   VOTER_INTEGRITY_MESSAGES,
   voterIntegrityMessage,
   voterIntegrityReasons,
+  voterIntegrityErrorMessage,
 } from "./voter-integrity-copy";
 import { interventionRequiresAttestation, resolveIntegrityIntervention } from "./integrity-policy";
 import { resolveJuryIntervention } from "@/integrations/jury-voting/jury-independence";
@@ -37,6 +38,14 @@ describe("simple voting-integrity copy", () => {
     expect(interventionRequiresAttestation("notice")).toBe(false);
     expect(interventionRequiresAttestation("review")).toBe(false);
     expect(interventionRequiresAttestation("provisional_review")).toBe(true);
+  });
+
+  it("explains known check, connection and declaration problems clearly", () => {
+    expect(voterIntegrityErrorMessage(new Error("Voting integrity check expired. Review the ballot again."), "fallback")).toContain("expired");
+    expect(voterIntegrityErrorMessage(new Error("Connection or device identity changed after the integrity check."), "fallback")).toContain("connection changed");
+    expect(voterIntegrityErrorMessage(new Error("All voting-integrity declarations must be acknowledged"), "fallback")).toContain("all five statements");
+    expect(voterIntegrityErrorMessage(new Error("Type the same username you registered with to sign the declaration"), "fallback")).toContain("username");
+    expect(voterIntegrityErrorMessage(new Error("Unknown permission error"), "fallback")).toBe("Unknown permission error");
   });
 
   it("limits voter-facing reasons to safe general categories", () => {
