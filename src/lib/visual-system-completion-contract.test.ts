@@ -87,7 +87,7 @@ describe("Solaris visual-system completion contract", () => {
     expect(confirmationShell).toContain('service="confirmations"');
 
     expect(jury).toContain("Voting integrity review");
-    expect(jury).toContain("This is not a finding of misconduct.");
+    expect(jury).toContain("voterIntegrityMessage(report.interventionLevel).body");
     expect(jury).not.toContain("YOUR JURY BALLOT WAS AUTOMATICALLY FLAGGED");
   });
 
