@@ -500,7 +500,14 @@ begin
     raise exception 'Not enough eligible recipients for this Jury score scale' using errcode='23514';
   end if;
   if p_action='assign' then
-    v_recipient:=coalesce(p_receiving_country_id,p_receiving_entity_id);
+    -- Canonicalize global contest entities to the receiving COUNTRY. A target
+    -- chosen once by country ID and again by global entity ID is still one
+    -- recipient, and both must enforce the same self-voting rule.
+    v_recipient:=coalesce(
+      p_receiving_country_id,
+      (select ce.country_id from public.contest_entities ce where ce.id=p_receiving_entity_id),
+      p_receiving_entity_id
+    );
     if v_recipient is null or not exists(
       select 1 from public.participants p where p.show_id=p_show_id
         and (p.participation_status is null or p.participation_status='confirmed')
@@ -510,7 +517,7 @@ begin
       raise exception 'Jury recipient is not eligible in this show' using errcode='23514';
     end if;
     if not coalesce((v_show.voting_config->>'allowSelfVote')::boolean,false)
-       and ((v_country is not null and v_country=p_receiving_country_id)
+       and ((v_country is not null and v_country=v_recipient)
          or (v_country is null and p_voter_entity_id is not null
              and p_voter_entity_id=p_receiving_entity_id)) then
       raise exception 'Jury self-voting is prohibited' using errcode='23514';
