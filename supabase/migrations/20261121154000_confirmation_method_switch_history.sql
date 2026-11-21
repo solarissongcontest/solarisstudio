@@ -62,27 +62,72 @@ begin
   v_patched := regexp_replace(v_definition, v_internal_pattern, 'null; /* inactive Internal history retained */', 'gi');
   v_patched := regexp_replace(v_patched, v_nf_pattern, 'null; /* inactive NF history retained */', 'gi');
 
-  -- Do not permit ordinary delegation edits to rewrite an already published
-  -- or lineup-bound entry. The governed Organizer correction flow owns these.
+  -- Only non-material corrections may pass a public/competition lock. Compare
+  -- the effective values written by the pinned function, including defaults
+  -- for omitted keys: a partial payload must never evade this guard.
   v_patched := replace(v_patched, v_guard_anchor, $guard$
   if is_edit and (
     exists (
-      select 1
-      from public.national_finals nf
+      select 1 from public.national_finals nf
       where nf.submission_id = existing.id
         and (coalesce(nf.lineup_published, false) or coalesce(nf.results_published, false))
+    )
+    or exists (
+      select 1 from public.participants p
+      join public.countries c on c.id = p.country_id
+      where p.edition_id = r.edition_id
+        and lower(btrim(c.name)) = lower(btrim(existing.country))
+        and (p.publication_status = 'published' or p.show_id is not null)
+    )
+  ) and (
+    existing.country is distinct from coalesce(nullif(trim(payload ->> 'country'), ''), existing.country)
+    or existing.country_account is distinct from nullif(trim(payload ->> 'country_account'), '')
+    or existing.has_country_account is distinct from coalesce((payload ->> 'has_country_account')::boolean, false)
+    or existing.participating is distinct from coalesce((payload ->> 'participating')::boolean, true)
+    or existing.selection_method is distinct from nullif(payload ->> 'selection_method', '')
+    or existing.entry_unknown is distinct from coalesce((payload ->> 'entry_unknown')::boolean, false)
+    or existing.nf_entries_unknown is distinct from coalesce((payload ->> 'nf_entries_unknown')::boolean, false)
+    or existing.reveal_date_type is distinct from nullif(payload ->> 'reveal_date_type', '')
+    or existing.reveal_exact_date is distinct from nullif(payload ->> 'reveal_exact_date', '')::date
+    or existing.reveal_approximate_text is distinct from nullif(payload ->> 'reveal_approximate_text', '')
+    or existing.nf_date_type is distinct from nullif(payload ->> 'nf_date_type', '')
+    or existing.nf_exact_date is distinct from nullif(payload ->> 'nf_exact_date', '')::date
+    or existing.nf_approximate_text is distinct from nullif(payload ->> 'nf_approximate_text', '')
+    or existing.nf_result_date_type is distinct from nullif(payload ->> 'nf_result_date_type', '')
+    or existing.nf_result_exact_date is distinct from nullif(payload ->> 'nf_result_exact_date', '')::date
+    or existing.nf_result_approximate_text is distinct from nullif(payload ->> 'nf_result_approximate_text', '')
+    or exists (
+      select 1 from public.internal_entries i
+      where i.submission_id = existing.id and existing.selection_method = 'internal'
         and (
-          existing.selection_method is distinct from nullif(payload ->> 'selection_method', '')
-          or existing.participating is distinct from coalesce((payload ->> 'participating')::boolean, true)
+          jsonb_build_array(i.artist,i.song_title,i.song_url,i.preview_start,i.preview_end,
+            i.final_clip_start,i.final_clip_end,coalesce(i.replacement_video_required,false),i.replacement_video_url)
+          is distinct from
+          jsonb_build_array(nullif(payload->>'artist',''),nullif(payload->>'song_title',''),
+            nullif(payload->>'song_url',''),nullif(payload->>'preview_start',''),nullif(payload->>'preview_end',''),
+            nullif(payload->>'final_clip_start',''),nullif(payload->>'final_clip_end',''),
+            coalesce((payload->>'replacement_video_required')::boolean,false),nullif(payload->>'replacement_video_url',''))
         )
     )
     or exists (
-    select 1
-    from public.participants p
-    join public.countries c on c.id = p.country_id
-    where p.edition_id = r.edition_id
-      and lower(btrim(c.name)) = lower(btrim(existing.country))
-      and (p.publication_status = 'published' or p.show_id is not null)
+      select 1 from public.national_finals nf
+      left join public.national_final_entries winner on winner.id = coalesce(nf.pending_winning_entry_id,nf.winning_entry_id)
+      where nf.submission_id = existing.id and existing.selection_method = 'national_final'
+        and (
+          nf.nf_name is distinct from nullif(payload->>'nf_name','')
+          or nf.expected_entry_count is distinct from nullif(payload->>'expected_entry_count','')::integer
+          or jsonb_build_array(winner.artist,winner.song_title,winner.preview_start,winner.preview_end,
+              winner.final_clip_start,winner.final_clip_end,coalesce(winner.replacement_video_required,false),winner.replacement_video_url)
+             is distinct from jsonb_build_array(nullif(payload->>'artist',''),nullif(payload->>'song_title',''),
+              nullif(payload->>'preview_start',''),nullif(payload->>'preview_end',''),
+              nullif(payload->>'final_clip_start',''),nullif(payload->>'final_clip_end',''),
+              coalesce((payload->>'replacement_video_required')::boolean,false),nullif(payload->>'replacement_video_url',''))
+          or (select coalesce(jsonb_agg(jsonb_build_array(e.artist,e.song_title,e.song_url) order by e.position),'[]'::jsonb)
+              from public.national_final_entries e where e.national_final_id=nf.id and not coalesce(e.removed,false))
+             is distinct from
+             (select coalesce(jsonb_agg(jsonb_build_array(nullif(item->>'artist',''),nullif(item->>'song_title',''),nullif(item->>'song_url','')) order by ordinal),'[]'::jsonb)
+              from jsonb_array_elements(coalesce(payload->'nf_entries','[]'::jsonb)) with ordinality incoming(item,ordinal))
+        )
     )
   ) then
     raise exception 'Published or competition-locked entries require an Organizer correction'

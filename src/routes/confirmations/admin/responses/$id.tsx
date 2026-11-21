@@ -777,7 +777,7 @@ function ResponseDetailPage() {
       const sync = await syncSnapshot(data);
       if (!sync.ok) toast.warning(sync.message ?? "Official Entry synchronization needs attention.");
     } catch (caught) {
-      toast.warning("Review saved, but official Entry synchronization is pending. Use Sync with Solaris to retry.");
+      toast.warning("Review saved. Official Entry synchronization is pending. Use Sync with Solaris to retry.");
       console.error("[Confirmations] Post-review projection requires recovery", caught);
     } finally {
       await load();

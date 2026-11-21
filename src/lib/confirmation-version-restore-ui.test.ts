@@ -17,7 +17,7 @@ describe('confirmation restore UI guardrails', () => {
 
   it('syncs the restored confirmation back to canonical Solaris after the backend succeeds', () => {
     expect(history).toContain("admin_restore_confirmation_version");
-    expect(history).toContain("data: { submissionId }");
+    expect(history).toContain("data: { submissionId, editionId }");
     expect(history).not.toContain("data: { snapshot:");
     expect(history).toContain('syncConfirmationSnapshotToSolaris');
     expect(history).toContain('Solaris sync needs attention');

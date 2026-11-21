@@ -4,6 +4,13 @@ on:
   pull_request:
     branches: [main]
     paths: &s06_archive_paths
+      # Confirmation/Jury authority candidates require exact-source Publication proof.
+      - "supabase/migrations/*confirmation*"
+      - "supabase/migrations/*jury*"
+      - "src/integrations/confirmations/**"
+      - "src/lib/v3-s16-mutation-authority*"
+      - "src/routes/_authenticated/admin/jury/**"
+      - ".github/scripts/v3-jury-*.sh"
       # An S16 workflow/policy gate update also needs its own exact-SHA PG17.11
       # Publication execution evidence, or S16 correctly remains uncertified.
       - ".github/workflows/v3-s16-catalog-rehearsal.yml"
