@@ -49,6 +49,7 @@ import {
   type VoterOption,
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
+import { isCompetingParticipant } from "@/lib/participation-status";
 import { reportSupabaseError } from "@/lib/errors";
 import { useFanSession } from "@/lib/prediction-data";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
@@ -193,11 +194,24 @@ function JuryWorkspace() {
     : orderedShows[0] ?? null;
   const participants = useMemo(
     () => allParticipants
-      .filter((participant) => participant.show_id === selectedShow?.id)
+      .filter((participant) => participant.show_id === selectedShow?.id && isCompetingParticipant(participant))
       .sort((a, b) => (a.running_order ?? 9999) - (b.running_order ?? 9999)),
     [allParticipants, selectedShow?.id],
   );
   const { data: showVoters = [], isLoading: loadingVoters } = useShowVoters(selectedShow?.id);
+  // Keep old roster records for history, never include inactive countries in
+  // live jury entry or voter selectors after a withdrawal/disqualification.
+  const inactiveCountryIds = useMemo(() => new Set(
+    allParticipants.filter((participant) => !isCompetingParticipant(participant))
+      .map((participant) => participant.country_id).filter(Boolean),
+  ), [allParticipants]);
+  const inactiveEntityIds = useMemo(() => new Set(
+    allParticipants.filter((participant) => !isCompetingParticipant(participant))
+      .map((participant) => participant.contest_entity_id).filter((id): id is string => Boolean(id)),
+  ), [allParticipants]);
+  const activeShowVoters = useMemo(() => showVoters.filter((voter) =>
+    !inactiveCountryIds.has(voter.country_id) && !inactiveEntityIds.has(voter.contest_entity_id)
+  ), [showVoters, inactiveCountryIds, inactiveEntityIds]);
   const { data: acceptedJuryVotes = [], isLoading: loadingAcceptedVotes } = useJuryVotes(selectedShow?.id);
   const { data: pendingManualJuryVotes = [], isLoading: loadingManualVotes } = useQuery({
     enabled: !!selectedShow?.id,
@@ -267,12 +281,12 @@ function JuryWorkspace() {
     [displays, order],
   );
   const voterOptions = useMemo(
-    () => resolveShowVoters(showVoters, order, receiverDisplays),
-    [order, receiverDisplays, showVoters],
+    () => resolveShowVoters(activeShowVoters, order, receiverDisplays),
+    [order, receiverDisplays, activeShowVoters],
   );
   const voting = useMemo(() => resolveVoting(selectedShow?.voting_config), [selectedShow?.voting_config]);
   const explicitRoster = showVoters.length > 0;
-  const orderedVoters = useMemo(() => [...showVoters].sort((a, b) => a.sort_order - b.sort_order), [showVoters]);
+  const orderedVoters = useMemo(() => [...activeShowVoters].sort((a, b) => a.sort_order - b.sort_order), [activeShowVoters]);
 
   const [view, setView] = useState<View>("ballots");
   const [activeVoter, setActiveVoter] = useState("");
@@ -778,7 +792,10 @@ function JuryWorkspace() {
   }
 
   const participatingCountryIds = new Set(participants.map((participant) => identityFor(participant.country_id).country_id).filter((id): id is string => !!id));
-  const countryChoices = draft.kind === "country" ? countries.filter((country) => participatingCountryIds.has(country.id)) : countries;
+  const countryChoices = countries.filter((country) =>
+    !inactiveCountryIds.has(country.id) &&
+    (draft.kind !== "country" || participatingCountryIds.has(country.id))
+  );
 
   const statusForVoter = (key: string, given: number) => {
     if (didNotVoteVoterKeys.has(key)) return { label: "Did not vote", tone: "neutral" as const };
