@@ -53,6 +53,7 @@ export type ConfirmationSolarisSyncResult = {
     | "unmatched_edition"
     | "canonical_newer"
     | "canonical_owned"
+    | "publication_locked"
     | "superseded_submission"
     | "projection_failed"
     | "publication_event_failed";
@@ -360,6 +361,31 @@ async function syncConfirmationSnapshotToSolarisInternal(
       entryId: canonicalGuard.data.id,
       message:
         "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it.",
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  // A published Entry/participant is not an ordinary Confirmation projection
+  // target. This check must happen before creating entities, altering any
+  // participant status or clearing a previously published song. Publication
+  // corrections are handled by the separately governed Organizer workflow.
+  const publishedParticipant = await db
+    .from("participants")
+    .select("id")
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id)
+    .eq("publication_status", "published")
+    .limit(1);
+  if (publishedParticipant.error) throw new Error(publishedParticipant.error.message);
+  if (canonicalGuard.data?.status === "published" || (publishedParticipant.data?.length ?? 0) > 0) {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "publication_locked",
+      editionId: edition.id,
+      countryId: country.id,
+      entryId: canonicalGuard.data?.id,
+      message: "This Entry or participant is already published. Ordinary Confirmation synchronization cannot replace it; use the governed Organizer correction workflow.",
     };
     await recordSyncEvent(db, snapshot, result, result.message);
     return result;
