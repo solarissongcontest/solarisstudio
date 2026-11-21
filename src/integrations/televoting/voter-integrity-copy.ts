@@ -22,7 +22,7 @@ export const VOTER_INTEGRITY_MESSAGES: Record<IntegrityIntervention, { title: st
     body: "Solaris found voting patterns that need an extra check. Please confirm you chose these votes yourself and haven't arranged votes with anyone else.",
   },
   enhanced_declaration: {
-    title: "Your vote has been flagged for review",
+    title: "Your vote needs an extra check",
     body: "Solaris found several unusual voting patterns. You can still submit your vote after signing a declaration. Organizers may review the ballot.",
   },
   provisional_review: {
