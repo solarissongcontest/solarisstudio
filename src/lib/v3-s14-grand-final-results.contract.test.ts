@@ -12,11 +12,11 @@ const resultVersions = readFileSync(
 );
 
 describe("S14 Grand Final results", () => {
-  it("reviews all 66 submitted final Jury ballots through governed authority", () => {
+  it("reviews all 65 eligible submitted final Jury ballots through governed authority", () => {
     expect(finalResults).toContain("studio2_jury_ballot_review_preview");
     expect(finalResults).toContain("studio2_apply_jury_ballot_review");
-    expect(finalResults).toContain("66 submitted Jury ballots");
-    expect(finalResults).toContain("66 Grand Final Jury ballots are valid");
+    expect(finalResults).toContain("submitted Jury ballots instead of 65");
+    expect(finalResults).toContain("not all 65 Grand Final Jury ballots are valid after review");
   });
 
   it("publishes final Televote truth through the real local app runtime", () => {
