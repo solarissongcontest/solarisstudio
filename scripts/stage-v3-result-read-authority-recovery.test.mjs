@@ -26,6 +26,11 @@ test("public RLS uses source-exact frozen evidence and cuts direct API writes wi
   );
   assert.doesNotMatch(sql, /revoke .*on table televoting\./);
   assert.match(sql, /Results API table grant\/RLS drift/);
+  // Either original Nov14 ACL or EXACT all-three-role revoked-TRUNCATE
+  // envelope; every other metadata field is strict, including RLS policies.
+  assert.match(sql, /actual - 'acl'/);
+  assert.match(sql, /replace\(expected->>'acl','arwdDxt\/postgres','arwdxt\/postgres'\)/);
+  assert.match(sql, /raise exception 'Results API table grant\/RLS drift'/);
   assert.match(sql, /Unqualified Results dependent view/);
   assert.match(sql, /begin;[\s\S]*commit;\s*$/);
 });

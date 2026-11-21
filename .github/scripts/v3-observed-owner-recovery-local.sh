@@ -157,6 +157,43 @@ operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
 operator_sql -f - < .github/tests/v3-results-observed-access-acls-local.sql
 operator_sql -c 'grant truncate,references,trigger on table public.results to anon,authenticated,service_role;'
 node scripts/stage-v3-result-read-authority-recovery.mjs > /tmp/result-read-authority-recovery.sql
+# An audited Nov19 production hardening removed ONLY TRUNCATE from all three API
+# roles on Results. Preserve original Nov14 local baseline and test the current
+# pre-revoked before-state independently on a networkless snapshot clone.
+operator_sql -c "create database result_api_revoked_probe owner postgres template recovery_operator_baseline;"
+docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d result_api_revoked_probe -c \
+  'revoke truncate on table public.results from anon,authenticated,service_role;'
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d result_api_revoked_probe -f - < /tmp/result-read-authority-recovery.sql
+docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d result_api_revoked_probe <<'RESULT_REVOKED_PROBE'
+do $check$
+declare actor text;
+begin
+ if to_regprocedure('private.v3_public_result_row_visible(uuid,uuid,jsonb)') is null then
+   raise exception 'Hardened Results restore did not install canonical visibility guard';
+ end if;
+ foreach actor in array array['anon','authenticated','service_role'] loop
+   if has_table_privilege(actor,'public.results','TRUNCATE,INSERT,UPDATE,DELETE') or
+      not has_table_privilege(actor,'public.results','SELECT') then
+     raise exception 'Unsafe Results API authority after hardened recovery for %',actor;
+   end if;
+ end loop;
+end $check$;
+RESULT_REVOKED_PROBE
+operator_sql -c "drop database result_api_revoked_probe;"
+echo 'PASS: Results API recovery accepts only reviewed all-role pre-revoked TRUNCATE baseline'
+# Unexpected SELECT removal remains prohibited; rejected transaction leaves
+# the entire isolated database unchanged.
+operator_sql -c "create database result_api_bad_acl_probe owner postgres template recovery_operator_baseline;"
+docker exec "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d result_api_bad_acl_probe -c \
+  'revoke truncate on table public.results from anon,authenticated,service_role; revoke select on table public.results from anon;'
+result_bad_acl_before="$(operator_state_digest result_api_bad_acl_probe)"
+if docker exec -i "$cid" psql -w -X -qAt -v ON_ERROR_STOP=1 -U postgres -d result_api_bad_acl_probe -f - < /tmp/result-read-authority-recovery.sql > /tmp/result-bad-acl.log 2>&1; then
+ echo 'ERROR: Results API recovered unreviewed ACL drift';exit 1
+fi
+grep -Fq 'Results API table grant/RLS drift' /tmp/result-bad-acl.log || { cat /tmp/result-bad-acl.log; exit 1; }
+[[ "$(operator_state_digest result_api_bad_acl_probe)" == "$result_bad_acl_before" ]] || { echo 'Rejected Results ACL drift mutated isolated data';exit 1; }
+operator_sql -c "drop database result_api_bad_acl_probe;"
+echo 'PASS: Results API unrelated ACL drift fails atomically'
 operator_apply /tmp/result-read-authority-recovery.sql
 operator_sql -v snapshot_before=false -f - < .github/tests/v3-public-snapshot-recovery.sql
 operator_sql -f - < .github/tests/v3-result-authority-recovery.sql
