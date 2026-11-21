@@ -125,7 +125,7 @@ begin
           or (select coalesce(jsonb_agg(jsonb_build_array(e.artist,e.song_title,e.song_url) order by e.position),'[]'::jsonb)
               from public.national_final_entries e where e.national_final_id=nf.id and not coalesce(e.removed,false))
              is distinct from
-             (select coalesce(jsonb_agg(jsonb_build_array(nullif(item->>'artist',''),nullif(item->>'song_title',''),nullif(item->>'song_url','')) order by ordinal),'[]'::jsonb)
+             (select coalesce(jsonb_agg(jsonb_build_array(nullif(incoming.item->>'artist',''),nullif(incoming.item->>'song_title',''),nullif(incoming.item->>'song_url','')) order by incoming.ordinal),'[]'::jsonb)
               from jsonb_array_elements(coalesce(payload->'nf_entries','[]'::jsonb)) with ordinality incoming(item,ordinal))
         )
     )
