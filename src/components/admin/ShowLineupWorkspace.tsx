@@ -137,6 +137,11 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     () => (showParticipants as LifecycleParticipant[]).filter(isCompetingParticipant),
     [showParticipants],
   );
+  const inactiveEditionIdentities = useMemo(() => new Set(
+    (allParticipants as LifecycleParticipant[])
+      .filter((participant) => !isCompetingParticipant(participant))
+      .map(participantKey),
+  ), [allParticipants]);
   const alphaParticipants = useMemo(
     () => [...lifecycleParticipants].sort((a, b) => {
       const aName = displayMap.get(participantKey(a))?.name ?? "";
@@ -214,7 +219,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     const seen = new Set<string>();
     return (allParticipants as LifecycleParticipant[]).filter((participant) => {
       const key = participantKey(participant);
-      if (participant.show_id === activeShow.id || !participant.qualified || present.has(key) || seen.has(key)) return false;
+      if (participant.show_id === activeShow.id || !isCompetingParticipant(participant) || !participant.qualified || present.has(key) || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
@@ -359,6 +364,10 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   async function addEntityToShow(entity: ContestEntityRow) {
     if (!edition || !activeShow) return;
     const key = entity.country_id ?? entity.id;
+    if (inactiveEditionIdentities.has(key)) {
+      toast.error("This country is withdrawn or disqualified. Restore it to Active in Participation status before adding it to a show.");
+      return;
+    }
     if (presentKeys.has(key)) {
       toast.message(`${displayMap.get(key)?.name ?? entity.display_name} is already in this show`);
       return;
@@ -912,7 +921,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         <div className="space-y-5">
           <div>
             <p className="admin-section-label">Terra Solaris country</p>
-            <CountryPicker countries={countries} value={countryPick} exclude={new Set(countries.filter((country) => presentKeys.has(country.id)).map((country) => country.id))} onChange={(id) => { setCountryPick(id); if (id) void addCountry(id); }} placeholder="Search country or code…" className="mt-2" />
+            <CountryPicker countries={countries} value={countryPick} exclude={new Set(countries.filter((country) => presentKeys.has(country.id) || inactiveEditionIdentities.has(country.id)).map((country) => country.id))} onChange={(id) => { setCountryPick(id); if (id) void addCountry(id); }} placeholder="Search country or code…" className="mt-2" />
           </div>
           <div className="border-t border-white/[0.07] pt-4">
             <div className="flex items-center justify-between gap-3"><p className="admin-section-label">Edition-only countries</p><button type="button" className="admin-action-secondary !min-h-9 !px-3" onClick={() => { setAddOpen(false); setCustomDraft({ ...emptyCustom }); }}><Plus className="size-3.5" /> Create</button></div>
