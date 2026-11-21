@@ -52,27 +52,27 @@ rpc_request "$USER_A_TOKEN" v3_submit_jury_ballot "$ACCOUNT_BODY"
 expect_success "account idempotent replay"
 expect_json "authoritative receipt stable" receipt.receipt_id "$ACCOUNT_RECEIPT"
 expect_json "account replay" receipt.replayed true
-rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_receiving_country_id\":\"$MANUAL_COUNTRY\",\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b723\"}"
+rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_entity_id\":null,\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b723\"}"
 expect_failure "account-first manual overwrite denied"
 [[ "$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$COUNTRY_A' and ballot_submission_id='$ACCOUNT_BALLOT_ID'")" == 10 ]] || fail "Account evidence changed"
 
 # No-account Organizer manual path, real RPC/roles/score scale, one point per
 # operation and exactly ten score allocations before acceptance.
-rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_preview "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_country_id\":\"$MANUAL_COUNTRY\"}"
+rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_preview "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_voter_entity_id\":null}"
 expect_success "no-account country manual preview"
 expect_json "new manual revision" expectedVersion 0
-rpc_request "$USER_B_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_country_id\":\"$COUNTRY_A\",\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b724\"}"
+rpc_request "$USER_B_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$COUNTRY_A\",\"p_receiving_entity_id\":null,\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b724\"}"
 expect_failure "non-Organizer manual writer denied"
-rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_country_id\":\"$COUNTRY_A\",\"p_points\":9,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b725\"}"
+rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$COUNTRY_A\",\"p_receiving_entity_id\":null,\"p_points\":9,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b725\"}"
 expect_failure "invalid SSC22 score denied"
-rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_country_id\":\"$MANUAL_COUNTRY\",\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b726\"}"
+rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_entity_id\":null,\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":0,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b726\"}"
 expect_failure "self-vote denied"
 index=0
 last_body=''
 for point in 12 10 8 7 6 5 4 3 2 1; do
   recipient="$(db_scalar "select ('00000000-0000-4000-8000-'||lpad(to_hex(50977+$index),12,'0'))::text")"
   operation="$(printf '00000000-0000-4000-8000-%012d' "$((9000+index))")"
-  last_body="{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_country_id\":\"$recipient\",\"p_points\":$point,\"p_action\":\"assign\",\"p_expected_version\":$index,\"p_operation_id\":\"$operation\"}"
+  last_body="{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$recipient\",\"p_receiving_entity_id\":null,\"p_points\":$point,\"p_action\":\"assign\",\"p_expected_version\":$index,\"p_operation_id\":\"$operation\"}"
   rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "$last_body"
   expect_success "Organizer manual score $point"
   if [[ "$index" -lt 9 ]]; then
@@ -92,7 +92,7 @@ expect_json "manual replay stable" replayed true
 
 # Correct completed manual ballot with a reason; stale revision rejected.
 NEW_RECIPIENT="$(db_scalar "select ('00000000-0000-4000-8000-'||lpad(to_hex(50988),12,'0'))::text")"
-CORRECT_BODY="{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_receiving_country_id\":\"$NEW_RECIPIENT\",\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":10,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b729\",\"p_reason\":\"Synthetic review correction\"}"
+CORRECT_BODY="{\"p_edition_id\":\"$EDITION_ID\",\"p_show_id\":\"$DUAL_SHOW\",\"p_voter_id\":null,\"p_voter_country_id\":\"$MANUAL_COUNTRY\",\"p_voter_entity_id\":null,\"p_receiving_country_id\":\"$NEW_RECIPIENT\",\"p_receiving_entity_id\":null,\"p_points\":12,\"p_action\":\"assign\",\"p_expected_version\":10,\"p_operation_id\":\"00000000-0000-4000-8000-00000000b729\",\"p_reason\":\"Synthetic review correction\"}"
 rpc_request "$USER_A_TOKEN" v3_organizer_jury_score_apply "$CORRECT_BODY"
 expect_success "versioned complete-ballot correction"
 expect_json "correction stays complete" complete true
