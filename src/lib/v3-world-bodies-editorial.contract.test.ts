@@ -24,7 +24,7 @@ describe("World institutional bodies: browser editorial experience", () => {
     expect(source).toContain('isAppMode ? "max-w-2xl px-3 pt-3"');
     expect(source).toContain("platformResolved ? children");
     expect(css()).toContain("html:not([data-solaris-app]) .world-bodies-editorial");
-    expect(source).toContain('"world-bodies-frame mx-auto w-full pb-28 "');
+    expect(source).toContain('"world-bodies-frame mx-auto w-full pb-28 [overflow-wrap:anywhere] "');
     expect(css()).toContain("@media (max-width: 767px)");
   });
 
