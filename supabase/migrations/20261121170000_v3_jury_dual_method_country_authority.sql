@@ -171,6 +171,14 @@ begin
     raise exception 'Organizer Jury score entry already exists for this country. Contact the Organizer.'
       using errcode = '23505';
   end if;
+  if exists (
+    select 1 from public.jury_ballot_statuses status
+    where status.show_id=_show_id and status.status='did_not_vote'
+      and status.voter_country_id=v_account.country_id
+  ) then
+    raise exception 'Your country is marked did-not-vote. Contact the Organizer before voting.'
+      using errcode='23514';
+  end if;
 
   select operation.* into v_existing
   from private.v3_jury_operations operation
@@ -260,13 +268,41 @@ begin
     raise exception 'Account and manual Jury scores cannot coexist'
       using errcode='23505';
   end if;
-  return case when tg_op='DELETE' then old else new end;
+  if tg_op='DELETE' then return old;end if;
+  return new;
 end $protect$;
 revoke all on function private.v3_jury_protect_submitted_vote()
   from public,anon,authenticated,service_role;
 create trigger v3_jury_protect_submitted_vote
 before insert or update or delete on public.jury_votes
 for each row execute function private.v3_jury_protect_submitted_vote();
+
+-- Absence status cannot be finalized while a private manual ballot is
+-- underway. The same lock prevents a concurrent account/manual/DNV race.
+create function private.v3_jury_protect_manual_dnv()
+returns trigger language plpgsql security definer
+set search_path=pg_catalog,public,private as $dnv$
+declare v_identity uuid;
+begin
+  if new.status='did_not_vote' then
+    v_identity:=private.v3_jury_resolve_voter(
+      new.show_id,new.voter_id,new.voter_country_id,new.voter_entity_id);
+    if v_identity is null then
+      raise exception 'DNV requires a voting country or entity' using errcode='22023';end if;
+    perform private.v3_jury_lock_country(new.show_id,v_identity);
+    if exists(select 1 from private.v3_jury_manual_scores d
+      where d.show_id=new.show_id and d.voter_identity=v_identity) then
+      raise exception 'Cannot mark did-not-vote while Organizer has recorded Jury scores'
+        using errcode='23514';
+    end if;
+  end if;
+  return new;
+end $dnv$;
+revoke all on function private.v3_jury_protect_manual_dnv()
+  from public,anon,authenticated,service_role;
+create trigger v3_jury_protect_manual_dnv
+before insert or update on public.jury_ballot_statuses
+for each row execute function private.v3_jury_protect_manual_dnv();
 
 -- Organizer's one-score-at-a-time actions use a server-issued revision and
 -- operation identity. This read-only preview exposes no data to non-Organizers.
