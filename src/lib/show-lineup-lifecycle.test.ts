@@ -9,6 +9,7 @@ const workspace = source("src/components/admin/ShowLineupWorkspace.tsx");
 const publicShow = source("src/routes/shows/$showId.tsx");
 const migration = source("supabase/migrations/20260821193132_show_lineup_lifecycle.sql");
 const atomicAllocation = source("supabase/migrations/20260919163323_atomic_show_allocation_draw.sql");
+const s14RunningOrders = source(".github/scripts/v3-s14-stage-5-running-orders.sh");
 
 describe("show line-up lifecycle", () => {
   it("never invents a running order when syncing confirmed countries", () => {
@@ -89,6 +90,11 @@ describe("show line-up lifecycle", () => {
 
   it("resets an allocation draw only for live show participants", () => {
     expect(workspace).toContain('.in("id", lifecycleParticipants.map((participant) => participant.id))');
+  });
+
+  it("runs the full contest rehearsal against active-only allocation and ordering", () => {
+    expect(s14RunningOrders).toContain("and coalesce(participation_status, 'confirmed') = 'confirmed'");
+    expect(s14RunningOrders).toContain("participation_status.is.null,participation_status.eq.confirmed");
   });
 
   it("keeps allocation and running-order edits local until one atomic save", () => {
