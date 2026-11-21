@@ -187,4 +187,51 @@ fi
 rm -rf "$RACE_OUT"
 log "PASS: shared lock yields one winner for simultaneous country-account and Organizer commands"
 
-log "PASS: local SSC22-shaped account/manual authority, no-account entry, full scale, correction, receipt and negative tests"
+# A DNV marker must share the country lock with account submissions. Race
+# independent REST and SQL transactions in the local-only fixture, then verify
+# that the losing operation made NO accepted canonical change.
+log "Racing account submission against did-not-vote on isolated SSC22 show"
+DNV_RACE_COUNTRY="$(db_scalar "select ('00000000-0000-4000-8000-'||lpad(to_hex(50990),12,'0'))::text")"
+create_user v3-jury-synthetic-dnv-race@solaris.invalid
+DNV_RACE_USER="$LAST_USER_ID"
+sign_in v3-jury-synthetic-dnv-race@solaris.invalid
+DNV_RACE_TOKEN="$LAST_TOKEN"
+db_exec "insert into public.country_accounts(user_id,country_id,status) values('$DNV_RACE_USER','$DNV_RACE_COUNTRY','active');"
+DNV_RACE_PREFLIGHT='00000000-0000-4000-8000-00000000f733'
+db_exec "insert into televoting.vote_preflight_checks(id,round_id,username_normalized,country_code,ballot_map,channel,canonical_edition_id,show_id,account_user_id,expires_at) values('$DNV_RACE_PREFLIGHT',null,'synthetic-dnv-race','Q14','$ACCOUNT_MAP'::jsonb,'jury','$EDITION_ID','$DUAL_SHOW','$DNV_RACE_USER',now()+interval '30 minutes');"
+DNV_RACE_BODY="{\"_show_id\":\"$DUAL_SHOW\",\"_entries\":$ACCOUNT_BALLOT,\"_preflight_id\":\"$DNV_RACE_PREFLIGHT\",\"_operation_id\":\"00000000-0000-4000-8000-00000000b733\"}"
+DNV_RACE_OUT="$(mktemp -d)"
+(
+  rpc_request "$DNV_RACE_TOKEN" v3_submit_jury_ballot "$DNV_RACE_BODY"
+  printf '%s' "$HTTP_STATUS" > "$DNV_RACE_OUT/account.status"
+  printf '%s' "$HTTP_BODY" > "$DNV_RACE_OUT/account.body"
+) &
+dnv_account_pid=$!
+(
+  if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "insert into public.jury_ballot_statuses(edition_id,show_id,voter_country_id,status) values('$EDITION_ID','$DUAL_SHOW','$DNV_RACE_COUNTRY','did_not_vote');" >"$DNV_RACE_OUT/dnv.log" 2>&1; then
+    printf '0' > "$DNV_RACE_OUT/dnv.failure"
+  else
+    printf '1' > "$DNV_RACE_OUT/dnv.failure"
+  fi
+) &
+dnv_status_pid=$!
+wait "$dnv_account_pid"
+wait "$dnv_status_pid"
+dnv_account_status="$(cat "$DNV_RACE_OUT/account.status")"
+dnv_failure="$(cat "$DNV_RACE_OUT/dnv.failure")"
+dnv_account_ok=0
+(( dnv_account_status>=200 && dnv_account_status<300 )) && dnv_account_ok=1 || true
+dnv_account_rows="$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$DUAL_SHOW' and voter_country_id='$DNV_RACE_COUNTRY'")"
+dnv_status_rows="$(db_scalar "select count(*) from public.jury_ballot_statuses where show_id='$DUAL_SHOW' and voter_country_id='$DNV_RACE_COUNTRY' and status='did_not_vote'")"
+dnv_vote_rows="$(db_scalar "select count(*) from public.jury_votes where show_id='$DUAL_SHOW' and voter_country_id='$DNV_RACE_COUNTRY'")"
+if (( dnv_account_ok==1 )); then
+  [[ "$dnv_failure" == 1 && "$dnv_account_rows" == 1 && "$dnv_status_rows" == 0 && "$dnv_vote_rows" == 10 ]] ||
+    fail "Account won DNV race but conflicting absence marker or incomplete vote was committed"
+else
+  [[ "$dnv_failure" == 0 && "$dnv_account_rows" == 0 && "$dnv_status_rows" == 1 && "$dnv_vote_rows" == 0 ]] ||
+    fail "DNV won race but account votes or conflicting status were committed"
+fi
+rm -rf "$DNV_RACE_OUT"
+log "PASS: account submission and DNV cannot both commit for one country/show"
+
+log "PASS: local SSC22-shaped account/manual, DNV races, full scale, receipt and negative tests"
