@@ -348,4 +348,35 @@ expect_eq "NF winner not silently reapproved" "$(scalar "select coalesce(winning
 expect_eq "all surviving NF candidates require fresh Organizer review" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and review_status='accepted';")" "0"
 expect_eq "switch did not duplicate Confirmation" "$(scalar "select count(*) from public.submissions where id='$SUBMISSION_ID';")" "1"
 expect_eq "both edits added version snapshots" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "3"
-log "PASS: method changes preserve inactive entry history and require fresh approval"
+
+# Reversible switching must work in BOTH directions, not merely NF -> Internal
+# -> NF. Returning to Internal cannot resurrect an approval from the inactive
+# period or delete the previously reviewed NF candidates.
+apply_governed_response_access true '00000000-0000-4000-8000-00000000e795' 'switch-nf-back-to-internal-open' 'Return to saved Internal history'
+BACK_TOKEN="$(as_user "$HOD_USER_ID" "select public.public_create_country_account_edit_token('$ROUND_ID'::uuid)->>'token';")"
+[[ -n "$BACK_TOKEN" ]] || fail "NF -> Internal return token not granted"
+BACK_HASH="$(scalar "select encode(extensions.digest(convert_to('$BACK_TOKEN','UTF8'),'sha256'),'hex');")"
+BACK_TO_INTERNAL="$(as_user "$HOD_USER_ID" "
+  select public.v3_submit_confirmation(
+    jsonb_build_object(
+      'round_id','$ROUND_ID','instagram_username','maintenance_nf_hod',
+      'country','Maintenance NF Land','country_account','NFW','has_country_account',true,
+      'participating',true,'selection_method','internal',
+      'entry_unknown',false,'nf_entries_unknown',false,
+      'artist','Internal Switch Artist','song_title','Internal Switch Song',
+      'song_url','https://example.invalid/internal-switch',
+      'preview_start','00:10','final_clip_start','00:20',
+      'replacement_video_required',false,
+      'browser_session_id','$SESSION_ID','edit_token_hash','$BACK_HASH'
+    ),
+    '00000000-0000-4000-8000-00000000e796'::uuid,
+    'local-switch-nf-back-to-internal','$SESSION_ID'
+  )::text;")"
+expect_eq "return to Internal accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("ok",False)).lower())' "$BACK_TO_INTERNAL")" "true"
+expect_eq "Internal reactivation keeps canonical response ID" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("submission_id",""))' "$BACK_TO_INTERNAL")" "$SUBMISSION_ID"
+expect_eq "original internal data is restored" "$(scalar "select song_title from public.internal_entries where submission_id='$SUBMISSION_ID';")" "Internal Switch Song"
+expect_eq "restored internal approval remains pending" "$(scalar "select review_status from public.internal_entries where submission_id='$SUBMISSION_ID';")" "pending"
+expect_eq "NF candidate evidence survives repeated switching" "$(scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID';")" "$NF_COUNT_BEFORE"
+expect_eq "returned Internal never activates historical NF winner" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
+expect_eq "third method switch keeps all four historical versions" "$(scalar "select count(*) from public.submission_versions where submission_id='$SUBMISSION_ID';")" "4"
+log "PASS: bidirectional NF/Internal/NF/Internal history and review invalidation"
