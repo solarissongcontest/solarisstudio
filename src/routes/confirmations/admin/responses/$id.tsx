@@ -675,7 +675,10 @@ function ResponseDetailPage() {
       setSyncingSolaris(true);
       setSolarisSyncError(null);
       try {
-        const result = await syncToSolaris({ data: { snapshot: detail } });
+        const result = await syncToSolaris({ data: {
+          submissionId: detail.id,
+          editionId: detail.edition?.id,
+        } });
         setSolarisSync(result);
         if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
         return result;
@@ -764,6 +767,21 @@ function ResponseDetailPage() {
     return () => { requestGeneration.current += 1; };
   }, [load]);
 
+  // The reviewed operation has already committed before this consequence.
+  // Never misreport a projection failure as a failed authoritative review.
+  const afterOrganizerDecision = useCallback(async () => {
+    if (!data) return;
+    try {
+      const sync = await syncSnapshot(data);
+      if (!sync.ok) toast.warning(sync.message ?? "Official Entry synchronization needs attention.");
+    } catch (caught) {
+      toast.warning("Review saved, but official Entry synchronization is pending. Use Sync with Solaris to retry.");
+      console.error("[Confirmations] Post-review projection requires recovery", caught);
+    } finally {
+      await load();
+    }
+  }, [data, load, syncSnapshot]);
+
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
     if (!data?.national_final) return;
 
@@ -817,7 +835,7 @@ function ResponseDetailPage() {
       },
     );
     if (rpcError) throw rpcError;
-    await load();
+    await afterOrganizerDecision();
   }
 
   async function setWinner(entry: ReviewEntry, reason: string) {
@@ -1084,7 +1102,7 @@ function ResponseDetailPage() {
                   editionId={data.edition?.id}
                   submissionId={data.id}
                   winner={data.national_final?.winning_entry_id === entry.id}
-                  onChanged={load}
+                  onChanged={afterOrganizerDecision}
                   onWinner={(reason) => setWinner(entry, reason)}
                   onClearWinner={
                     data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined
