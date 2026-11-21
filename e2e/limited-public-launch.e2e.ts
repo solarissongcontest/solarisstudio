@@ -30,6 +30,21 @@ test("only the approved public and participation routes render", async ({ contex
   }
 });
 
+test("mobile Safari and desktop reach the actual Home instead of staying on the SSR bootstrap", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+  // A 200 response can still display the query-free SSR bootstrap forever if
+  // hydration or client assets fail. This was visible on an actual iPhone.
+  await expect(page.locator("[data-v3-primary-boot]")).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator("header.site-nav")).toBeVisible();
+  await expect(page.locator("main[data-public-layout]")).toHaveCount(1);
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "web");
+  expect(errors, "Home must not crash during browser hydration").toEqual([]);
+});
+
 test("hidden public URLs fail closed at the Worker before app SSR", async ({ request }) => {
   for (const route of HIDDEN_ROUTES) {
     const response = await request.get(route, { maxRedirects: 0 });
@@ -39,6 +54,35 @@ test("hidden public URLs fail closed at the Worker before app SSR", async ({ req
     expect(await response.text(), route).toContain("This page is not available yet");
   }
 });
+
+for (const failure of ["disabled JavaScript", "blocked client modules"] as const) {
+  test(`Home offers native recovery with ${failure}`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ javaScriptEnabled: failure !== "disabled JavaScript", serviceWorkers: "block" });
+    // This case needs only SSR HTML. No browser request may leave the local origin.
+    await context.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin !== new URL(baseURL!).origin || route.request().resourceType() === "script") {
+        await route.abort();
+      } else await route.continue();
+    });
+    const page = await context.newPage();
+    try {
+      await page.goto(baseURL!, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("[data-v3-primary-boot]")).toBeVisible();
+      await page.getByText("Taking longer than expected?", { exact: true }).click();
+      const reload = page.getByRole("button", { name: "Reload this page" });
+      await expect(reload).toBeVisible();
+      expect(await reload.evaluate((element) => element.closest('[aria-busy="true"]') !== null)).toBe(false);
+      await Promise.all([page.waitForNavigation(), reload.click()]);
+      expect(new URL(page.url()).pathname).toBe("/");
+      expect(new URL(page.url()).search).toBe("");
+      await expect(page.locator("[data-v3-primary-boot]")).toBeVisible();
+      if (failure === "disabled JavaScript") await expect(page.getByText(/JavaScript is unavailable/)).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+}
 
 test("public home navigation does not advertise unpublished areas", async ({ context }) => {
   // Independent documents are essential for the installed WebKit project.

@@ -11,6 +11,7 @@ import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
 import { V3HomeScreen } from "./V3HomeScreen";
 import { V3ParticipateScreen } from "./V3ParticipateScreen";
+import { PrimarySurfaceRecovery } from "./PrimarySurfaceRecovery";
 
 type V3PrimarySurface = "home" | "participate";
 
@@ -54,9 +55,7 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
         )}
       </nav>
 
-      <p className="sr-only" role="status" aria-live="polite">
-        Checking the current app experience.
-      </p>
+      <PrimarySurfaceRecovery surface={surface} />
     </main>
   );
 }
