@@ -1025,7 +1025,7 @@ function ResponseDetailPage() {
           </div>
         </AdminCard>
 
-        {data.internal_entry ? (
+        {data.internal_entry && data.selection_method === "internal" ? (
           <section>
             <div className="mb-2 flex items-end justify-between gap-3 px-1">
               <div>
@@ -1041,12 +1041,12 @@ function ResponseDetailPage() {
               targetType="internal"
               editionId={data.edition?.id}
               submissionId={data.id}
-              onChanged={load}
+              onChanged={afterOrganizerDecision}
             />
           </section>
         ) : null}
 
-        {data.national_final ? (
+        {data.national_final && data.selection_method === "national_final" ? (
           <AdminCard>
             <AdminCardHeader
               eyebrow="Entry review"
