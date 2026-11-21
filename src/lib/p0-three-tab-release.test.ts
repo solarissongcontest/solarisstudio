@@ -20,11 +20,13 @@ describe("P0 limited release restricts public navigation, including installed ta
   });
 
   it("binds web chrome and iOS dock/drag gestures to the active limited allowlist", () => {
-    expect(app).toContain("publicGlobalAreasForContext(publicUser).filter((area) => publicLaunchAllows(area.to))");
+    expect(app).toContain("publicGlobalAreasForContext(publicUser).filter((area) => publicUser.organizer || publicLaunchAllows(area.to))");
     expect(drawer).toContain("publicGlobalAreasForContext(user).filter((item) => allows(item.to))");
     expect(dock).toContain("const LAUNCH_TAB_AREAS = PUBLIC_GLOBAL_AREAS.filter((area) => publicLaunchAllows(area.to))");
-    expect(dock).toContain("itemCount: LAUNCH_TAB_AREAS.length");
-    expect(dock).toContain("const area = LAUNCH_TAB_AREAS[targetIndex]");
+    expect(dock).toContain("itemCount: tabAreas.length");
+    expect(dock).toContain("const area = tabAreas[targetIndex]");
+    expect(dock).toContain("const tabAreas = adminPreview ? PUBLIC_GLOBAL_AREAS : LAUNCH_TAB_AREAS");
+    expect(app).toContain("adminPreview={publicUser.organizer}");
     expect(worker).toContain("!limitedPublicLaunchAllows(url.pathname)");
   });
 
