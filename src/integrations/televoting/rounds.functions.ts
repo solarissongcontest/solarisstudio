@@ -144,11 +144,14 @@ export const getMergedTelevotingRounds = createServerFn({ method: "GET" }).handl
 });
 
 export const createMergedTelevotingRound = createServerFn({ method: "POST" })
-  .inputValidator((data: { editionId: string; name: string }) => {
+  .inputValidator((data: { editionId: string; name: string; roundId: string }) => {
     const name = String(data?.name ?? "").trim();
     if (!data?.editionId) throw new Error("Missing edition");
     if (!name) throw new Error("Round name required");
-    return { editionId: data.editionId, name };
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data?.roundId ?? "")) {
+      throw new Error("Valid round creation identity required");
+    }
+    return { editionId: data.editionId, name, roundId: data.roundId };
   })
   .handler(async ({ data }) => {
     const { createMergedTelevotingRoundServer } = await import(
