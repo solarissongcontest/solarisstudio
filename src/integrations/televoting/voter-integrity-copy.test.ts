@@ -71,6 +71,10 @@ describe("simple voting-integrity copy", () => {
       expect(page).not.toContain("integrityReport.riskScore}/100");
     }
     expect(juryPage).toContain('setStage(nextReport.requiresAttestation ? "integrity" : "review")');
+    expect(juryPage).toContain("voterIntegrityBannerClass(report.interventionLevel)");
+    expect(televoteBooth).toContain("voterIntegrityBannerClass(integrityReport.interventionLevel)");
+    expect(juryPage).not.toContain("report.severity)");
+    expect(televoteBooth).not.toContain("integrityReport.severity)");
     expect(televoteBooth).toContain("if (report.requiresAttestation)");
     expect(televoteBooth).toContain("await attestVote(");
   });
