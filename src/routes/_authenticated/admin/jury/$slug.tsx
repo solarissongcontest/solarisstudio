@@ -213,10 +213,22 @@ function JuryWorkspace() {
   });
   // Incomplete manual allocations are private drafts. Accepted ballots come
   // from jury_votes; presenting both never double-counts a completed ballot.
-  const juryVotes = useMemo(
-    () => [...acceptedJuryVotes, ...pendingManualJuryVotes],
-    [acceptedJuryVotes, pendingManualJuryVotes],
-  );
+  const juryVotes = useMemo(() => {
+    const draftCountries = new Set(
+      pendingManualJuryVotes.map((vote) => vote.voter_country_id).filter(Boolean),
+    );
+    const draftVoters = new Set(
+      pendingManualJuryVotes.map((vote) => vote.voter_id).filter(Boolean),
+    );
+    // The canonical results keep the previously accepted manual ballot until a
+    // correction is complete. Show the Organizer's private pending draft in the
+    // editor instead of stacking old accepted rows on top of the draft.
+    const acceptedWithoutPendingCorrections = acceptedJuryVotes.filter((vote) =>
+      !(vote.voter_country_id && draftCountries.has(vote.voter_country_id)) &&
+      !(vote.voter_id && draftVoters.has(vote.voter_id))
+    );
+    return [...acceptedWithoutPendingCorrections, ...pendingManualJuryVotes];
+  }, [acceptedJuryVotes, pendingManualJuryVotes]);
   const loadingVotes = loadingAcceptedVotes || loadingManualVotes;
   const { data: ballotStatuses = [], isLoading: loadingStatuses } = useQuery({
     enabled: !!selectedShow?.id,
@@ -818,6 +830,20 @@ function JuryWorkspace() {
         <Metric label="Did not vote" value={didNotVoteCount} />
         <Metric label="Remaining" value={remainingVoters} />
       </div>
+
+      {pendingManualJuryVotes.some((draft) =>
+        acceptedJuryVotes.some((accepted) =>
+          (draft.voter_country_id && accepted.voter_country_id === draft.voter_country_id) ||
+          (draft.voter_id && accepted.voter_id === draft.voter_id)
+        )
+      ) ? (
+        <AdminCard className="mb-4">
+          <p className="text-sm font-semibold">Jury correction draft in progress</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            The last completed Organizer ballot remains in official results until all revised scores are assigned. The editor shows the pending correction.
+          </p>
+        </AdminCard>
+      ) : null}
 
       {conflictingStatuses.length ? (
         <AdminCard className="mb-4 !border-rose-200/20 !bg-rose-200/[0.05]">
