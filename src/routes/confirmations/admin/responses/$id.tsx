@@ -128,6 +128,7 @@ type ResponseDetail = {
     nf_name: string | null;
     expected_entry_count: number | null;
     winning_entry_id: string | null;
+    pending_winning_entry_id?: string | null;
     entries: ReviewEntry[];
   } | null;
   history: HistoryItem[];
@@ -185,6 +186,7 @@ function detailState(data: ResponseDetail): DetailState {
     if (reviewStates.includes("declined")) return "issue";
     if (reviewStates.some((status) => status !== "accepted")) return "review";
     const winnerId = data.national_final?.winning_entry_id;
+    if (data.national_final?.pending_winning_entry_id && !winnerId) return "review";
     return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "neutral";
   }
 
@@ -1051,10 +1053,12 @@ function ResponseDetailPage() {
             <AdminCardHeader
               eyebrow="Entry review"
               title={data.national_final.nf_name || "National Final"}
-              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : " · winner not selected"}`}
+              description={`${activeNfEntries.length} active ${activeNfEntries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : data.national_final.pending_winning_entry_id ? " · declared winner awaiting review" : " · winner not selected"}`}
               action={
                 data.national_final.winning_entry_id ? (
                   <AdminStatus tone="ready">Winner set</AdminStatus>
+                ) : data.national_final.pending_winning_entry_id ? (
+                  <AdminStatus tone="attention">Winner awaiting review</AdminStatus>
                 ) : activeNfEntries.length &&
                   activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
                   <AdminStatus tone="neutral">Waiting for winner</AdminStatus>
