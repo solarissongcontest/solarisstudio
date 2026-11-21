@@ -37,6 +37,7 @@ import { useFanSession } from "@/lib/prediction-data";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { juryAllocationError, juryConfigurationError } from "@/lib/jury-ballot-validation";
 import { juryReceiptQueryKey } from "@/lib/v3-jury-receipt-query-key";
 import {
   lookupV3JuryReceipt,
@@ -168,7 +169,7 @@ function JuryVotingPage() {
   const isLoading = session.isLoading || contextLoading;
 
   const rounds = context?.rounds ?? [];
-  const openRound = rounds.find((round) => round.status === "open" && round.eligible && !round.already_submitted);
+  const openRound = v3ReliabilityEnabled ? rounds.find((round) => round.status === "open" && round.eligible && !round.already_submitted) : undefined;
 
   if (isLoading) {
     return <JuryVotingFrame description="Loading the current jury voting status…"><Panel><p className="text-sm text-muted-foreground">Loading jury voting…</p></Panel></JuryVotingFrame>;
@@ -219,8 +220,8 @@ function JuryVotingPage() {
                 {rounds.map((round) => (
                   <div key={round.show_id} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                      <div className="min-w-0"><p className="truncate text-sm font-semibold">SSC {round.edition_number} · {round.show_name}</p><p className="mt-1 text-xs text-muted-foreground">{round.already_submitted ? "Your country's jury ballot is already recorded." : !round.eligible ? "Your country is not in this show's jury roster." : round.status === "open" ? "Jury voting is open." : "Jury voting is closed."}</p></div>
-                      <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]", round.already_submitted ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : round.status === "open" ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-surface text-muted-foreground")}>{round.already_submitted ? "Recorded" : round.status}</span>
+                      <div className="min-w-0"><p className="truncate text-sm font-semibold">SSC {round.edition_number} · {round.show_name}</p><p className="mt-1 text-xs text-muted-foreground">{round.already_submitted ? "Your country's jury ballot is already recorded." : !round.eligible ? "Your country is not in this show's jury roster." : !v3ReliabilityEnabled ? "Secure jury voting is not enabled." : round.status === "open" ? "Jury voting is open." : "Jury voting is closed."}</p></div>
+                      <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]", round.already_submitted ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : round.status === "open" ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-surface text-muted-foreground")}>{round.already_submitted ? "Recorded" : !v3ReliabilityEnabled ? "Unavailable" : round.status}</span>
                     </div>
                     {round.already_submitted && v3ReliabilityEnabled && context.country && userId !== "anonymous" ? (
                       <JuryRecordedReceipt
@@ -328,7 +329,10 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   const lastSavedFingerprint = useRef<string | null>(null);
 
   const ballot = useMemo(() => round.point_scale.map((points, index) => ({ target_country_id: selections[index], points })).filter((entry): entry is { target_country_id: string; points: number } => Boolean(entry.target_country_id)), [round.point_scale, selections]);
-  const complete = ballot.length === round.point_scale.length;
+  const validationScope = { pointScale: round.point_scale, participantIds: round.entries.map((entry) => entry.country_id), countryId: country.id, allowSelfVote: round.allow_self_vote };
+  const configurationError = juryConfigurationError(validationScope);
+  const allocationError = juryAllocationError({ ...validationScope, entries: ballot });
+  const complete = allocationError === null;
 
   useEffect(() => {
     if (!v3ReliabilityEnabled) {
@@ -413,6 +417,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       if (!v3ReliabilityEnabled) {
         throw new Error("Jury submission is unavailable until the secure voting service is enabled.");
       }
+      if (allocationError) throw new Error(allocationError);
       const fingerprint = JSON.stringify(ballot);
       if (userId === "anonymous") throw new Error("Your Solaris sign-in must be verified before voting.");
       const operationScope = { actorId: userId, countryId: country.id, showId: round.show_id };
@@ -498,7 +503,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   const preflightMutation = useMutation({
     mutationFn: async () => {
       if (!v3ReliabilityEnabled) throw new Error("Jury submission is unavailable until the secure voting service is enabled.");
-      if (!complete) throw new Error("Assign every jury score before continuing");
+      if (allocationError) throw new Error(allocationError);
       if (!acceptedRule) throw new Error("Confirm that you understand the friend-voting rule");
       const identity = await buildTelevotingClientIdentity();
       return preflight({ data: { showId: round.show_id, entries: ballot, accessToken, fingerprintHash: identity.fingerprintHash, deviceTokenHash: identity.deviceTokenHash } });
@@ -648,6 +653,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   return (
     <Panel title={`${round.show_name} jury ballot`} description={`SSC ${round.edition_number} · Assign each jury score exactly once.`}>
       <div className="space-y-4">
+        {configurationError ? <p role="alert" className="text-sm text-red-200">{configurationError}</p> : null}
         {draftConflict ? (
           <div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-4" role="alert" data-v3-jury-draft="conflict">
             <p className="text-sm font-semibold text-amber-100">A newer ballot draft was saved on another device.</p>
