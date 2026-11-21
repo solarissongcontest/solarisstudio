@@ -788,7 +788,7 @@ function ShowPage() {
               }
             >
               <div className="divide-y divide-border/60">
-                {publicLineupParticipants.map((participant) => {
+                {publicLineupParticipants.map((participant, index) => {
                   const country = displayMap.get(participant.country_id);
                   if (!country) return null;
                   const status = participationStatus(participant);
@@ -805,7 +805,7 @@ function ShowPage() {
                     >
                       {publication.running_order && (
                         <span className="numeric text-sm text-muted-foreground">
-                          {participant.running_order ?? "—"}
+                          {index + 1}
                         </span>
                       )}
                       <FlagChip
