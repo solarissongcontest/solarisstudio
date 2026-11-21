@@ -1,3 +1,4 @@
+import { juryConfigurationError } from "@/lib/jury-ballot-validation";
 import { randomUUID } from "node:crypto";
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -272,8 +273,8 @@ export async function runJuryIntegrityPreflightServer(
 
   const voting = (show.voting_config ?? {}) as Record<string, unknown>;
   if (voting.juryEnabled === false) throw new Error("Jury voting is disabled for this show");
-  const pointScale = Array.isArray(voting.juryPoints) && voting.juryPoints.length
-    ? voting.juryPoints.map(Number).filter(Number.isFinite)
+  const pointScale = Array.isArray(voting.juryPoints)
+    ? voting.juryPoints.map(Number)
     : [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
   const allowSelfVote = voting.allowSelfVote === true;
 
@@ -291,6 +292,9 @@ export async function runJuryIntegrityPreflightServer(
   if (!roster.length && !participantIds.has(countryId)) {
     throw new Error("Your country is not eligible to jury vote in this show");
   }
+
+  const configurationError = juryConfigurationError({ pointScale, participantIds: [...participantIds], countryId, allowSelfVote });
+  if (configurationError) throw new Error(configurationError);
 
   if (!Array.isArray(input.entries) || !sameNumbers(input.entries.map((entry) => entry.points), pointScale)) {
     throw new Error("Use every jury score exactly once");
