@@ -4,5 +4,8 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 // rendered by rounds/index.tsx; the edition-verified entries editor lives
 // beneath rounds/$id.tsx and must be reachable through both parent outlets.
 export const Route = createFileRoute("/televoting/admin/rounds")({
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex, nofollow" }],
+  }),
   component: Outlet,
 });
