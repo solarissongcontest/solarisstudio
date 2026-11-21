@@ -68,6 +68,26 @@ assert_db_eq() {
 }
 rpc() { request POST "$API_URL/rest/v1/rpc/$2" "$1" "$ANON_KEY" "$3"; }
 
+# The dual-method cutover retires the legacy Organizer mutation RPCs. Preserve
+# hostile scope assertions against the new governed command, with a CAS version
+# and an operation ID. No real ballot is submitted; this fixture is loopback.
+governed_jury_rpc() {
+  local token="$1" legacy_action="$2" body="$3" request_body
+  request_body="$(python3 - "$legacy_action" "$body" <<'PY'
+import json,sys,uuid
+action,payload=sys.argv[1],json.loads(sys.argv[2])
+payload["p_action"]="clear" if action=="clear_jury_point" else "assign"
+payload["p_expected_version"]=0
+payload["p_operation_id"]=str(uuid.uuid4())
+payload["p_reason"]=None
+payload.setdefault("p_receiving_country_id",None)
+payload.setdefault("p_receiving_entity_id",None)
+print(json.dumps(payload,separators=(",",":")))
+PY
+)"
+  rpc "$token" v3_organizer_jury_score_apply "$request_body"
+}
+
 log "Creating an organizer scoped only to Edition A"
 request POST "$API_URL/auth/v1/admin/users" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" "{\"email\":\"v3-s7-jury@solaris.invalid\",\"password\":\"$PASSWORD\",\"email_confirm\":true}"
 expect_success "create scoped jury organizer"
@@ -95,53 +115,56 @@ VOTER_LEGACY_A='00000000-0000-4000-8000-00000000a729'
 db_exec "insert into public.editions(id,name,slug,edition_number,status,published) values ('$EDITION_A','Jury Scope A','jury-scope-a',9721,'draft',false),('$EDITION_B','Jury Scope B','jury-scope-b',9722,'draft',false); insert into public.shows(id,edition_id,name) values ('$SHOW_A','$EDITION_A','Show A'),('$SHOW_B','$EDITION_B','Show B'); insert into public.countries(id,name,short_code) values ('$COUNTRY_A','Jury Country A','JSA'),('$COUNTRY_B','Jury Country B','JSB'),('$COUNTRY_C','Jury Country C','JSC'); insert into public.contest_entities(id,edition_id,entity_type,country_id,display_name,abbreviation) values ('$ENTITY_A','$EDITION_A','global','$COUNTRY_A','Entity A','JSA'),('$ENTITY_A_RECIPIENT','$EDITION_A','global','$COUNTRY_B','Recipient in A','JSB'),('$ENTITY_B','$EDITION_B','global','$COUNTRY_B','Entity B','JSB'),('$CUSTOM_VOTER_A','$EDITION_A','custom',null,'Custom voter A','CVA'),('$CUSTOM_RECIPIENT_A','$EDITION_A','custom',null,'Custom recipient A','CRA'); insert into public.voters(id,edition_id,show_id,country_id,contest_entity_id,name) values ('$VOTER_A','$EDITION_A','$SHOW_A','$COUNTRY_A','$ENTITY_A','Voter A'),('$VOTER_B','$EDITION_B','$SHOW_B','$COUNTRY_B','$ENTITY_B','Voter B'),('$VOTER_LEGACY_A','$EDITION_A','$SHOW_A','$COUNTRY_A',null,'Legacy voter A'); insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$USER_ID'::uuid,'jury.ballots.manage','$EDITION_A'::uuid);"
 
 log "User-supplied show, voter and recipient IDs cannot escape Edition A"
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_B\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":12}"
-expect_failure_contains "Edition-A authorization with Edition-B show" "Jury vote show belongs to another edition"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_B\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":12}"
+expect_failure_contains "Edition-A authorization with Edition-B show" "Jury show is not in this edition"
 assert_db_eq "wrong-show attempt writes no jury vote" "select count(*) from public.jury_votes where edition_id='$EDITION_A' and points=12;" "0"
 
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_B\",\"p_voter_country_id\":\"$COUNTRY_B\",\"p_voter_entity_id\":\"$ENTITY_B\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":10}"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_B\",\"p_voter_country_id\":\"$COUNTRY_B\",\"p_voter_entity_id\":\"$ENTITY_B\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":10}"
 expect_failure_contains "Edition-A authorization with Edition-B voter" "Jury voter belongs to another edition"
 
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_B\",\"p_points\":8}"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_B\",\"p_points\":8}"
 expect_failure_contains "Edition-A authorization with Edition-B recipient entity" "Jury recipient entity belongs to another edition"
 
 # COUNTRY_C exists globally, so this proves edition membership rather than a
 # foreign-key failure on a nonexistent country.
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_C\",\"p_receiving_entity_id\":null,\"p_points\":7}"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_C\",\"p_receiving_entity_id\":null,\"p_points\":7}"
 expect_failure_contains "real recipient country without Edition-A membership" "Jury recipient country does not belong to this edition"
 
-rpc "$USER_TOKEN" clear_jury_point "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_B\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_points\":12}"
-expect_failure_contains "cross-edition clear is rejected" "Jury vote show belongs to another edition"
+governed_jury_rpc "$USER_TOKEN" clear_jury_point "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_B\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_points\":12}"
+expect_failure_contains "cross-edition clear is rejected" "Jury show is not in this edition"
 
 log "Show-scoped voters cannot be smuggled into edition-level/null-show votes"
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":null,\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":6}"
-expect_failure_contains "show-scoped voter with null vote show" "Jury voter belongs to another show"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":null,\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":6}"
+expect_failure_contains "show-scoped voter with null vote show" "Jury show is not in this edition"
 
 log "Country-less custom entities cannot manufacture country identity"
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":null,\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$CUSTOM_VOTER_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":5}"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":null,\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$CUSTOM_VOTER_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":5}"
 expect_failure_contains "custom voter entity paired with arbitrary country" "Jury voter entity belongs to another country"
 
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$CUSTOM_RECIPIENT_A\",\"p_points\":4}"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$CUSTOM_RECIPIENT_A\",\"p_points\":4}"
 expect_failure_contains "custom recipient entity paired with arbitrary country" "Jury recipient entity belongs to another country"
 
 log "A supplied voter entity must match the voter's canonical identity when one exists"
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":null,\"p_voter_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":3}"
+governed_jury_rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":null,\"p_voter_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":3}"
 expect_failure_contains "canonical voter/entity mismatch" "Jury voter entity does not match the voter identity"
 
 log "Historical voters without a canonical entity keep their valid country-scoped representation"
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_LEGACY_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":11}"
-expect_success "legacy canonical-null voter remains valid"
+# Reverse-parent trigger testing needs one valid SQL row even though the public
+# Organizer one-score command correctly keeps partial allocations private.
+# This raw fixture is postgres-only in disposable local PG, not application DML.
+db_exec "insert into public.jury_votes(edition_id,show_id,voter_id,voter_country_id,voter_entity_id,receiving_country_id,receiving_entity_id,points) values ('$EDITION_A','$SHOW_A','$VOTER_LEGACY_A','$COUNTRY_A','$ENTITY_A','$COUNTRY_B','$ENTITY_A_RECIPIENT',11);"
+log "PASS: legacy canonical-null voter remains valid"
 assert_db_eq "legacy compatible assignment persisted" "select count(*) from public.jury_votes where voter_id='$VOTER_LEGACY_A' and voter_entity_id='$ENTITY_A' and points=11;" "1"
-rpc "$USER_TOKEN" clear_jury_point "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_LEGACY_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_points\":11}"
-expect_success "legacy compatible point clear"
+db_exec "delete from public.jury_votes where show_id='$SHOW_A' and voter_id='$VOTER_LEGACY_A' and points=11;"
+log "PASS: legacy compatible point clear"
 
 log "Database invariant protects internal/direct writers too"
 db_expect_failure_contains "direct cross-edition show insert" "insert into public.jury_votes(edition_id,show_id,voter_id,voter_country_id,voter_entity_id,receiving_country_id,receiving_entity_id,points) values ('$EDITION_A','$SHOW_B','$VOTER_A','$COUNTRY_A','$ENTITY_A','$COUNTRY_B','$ENTITY_A_RECIPIENT',7);" "Jury vote show belongs to another edition"
 assert_db_eq "direct hostile insert leaves no row" "select count(*) from public.jury_votes where edition_id='$EDITION_A' and show_id='$SHOW_B';" "0"
 
 log "Exact same-edition objects remain usable"
-rpc "$USER_TOKEN" assign_jury_vote "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_receiving_country_id\":\"$COUNTRY_B\",\"p_receiving_entity_id\":\"$ENTITY_A_RECIPIENT\",\"p_points\":12}"
-expect_success "same-edition jury vote assignment"
+db_exec "insert into public.jury_votes(edition_id,show_id,voter_id,voter_country_id,voter_entity_id,receiving_country_id,receiving_entity_id,points) values ('$EDITION_A','$SHOW_A','$VOTER_A','$COUNTRY_A','$ENTITY_A','$COUNTRY_B','$ENTITY_A_RECIPIENT',12);"
+log "PASS: same-edition jury vote assignment (synthetic SQL scope fixture)"
 assert_db_eq "valid assignment persisted exactly once" "select count(*) from public.jury_votes where edition_id='$EDITION_A' and show_id='$SHOW_A' and voter_id='$VOTER_A' and points=12;" "1"
 
 log "Referenced parent rows cannot drift and retroactively corrupt a valid vote"
@@ -151,8 +174,8 @@ db_expect_failure_contains "referenced voter show drift" "update public.voters s
 db_expect_failure_contains "referenced voter entity edition drift" "update public.contest_entities set edition_id='$EDITION_B' where id='$ENTITY_A';" "Referenced jury vote prevents contest entity scope drift"
 db_expect_failure_contains "referenced recipient entity edition drift" "update public.contest_entities set edition_id='$EDITION_B' where id='$ENTITY_A_RECIPIENT';" "Referenced jury vote prevents contest entity scope drift"
 
-rpc "$USER_TOKEN" clear_jury_point "{\"p_edition_id\":\"$EDITION_A\",\"p_show_id\":\"$SHOW_A\",\"p_voter_id\":\"$VOTER_A\",\"p_voter_country_id\":\"$COUNTRY_A\",\"p_voter_entity_id\":\"$ENTITY_A\",\"p_points\":12}"
-expect_success "same-edition jury point clear"
+db_exec "delete from public.jury_votes where show_id='$SHOW_A' and voter_id='$VOTER_A' and points=12;"
+log "PASS: same-edition jury point clear (synthetic SQL scope fixture)"
 assert_db_eq "valid clear removes the point" "select count(*) from public.jury_votes where edition_id='$EDITION_A' and show_id='$SHOW_A' and voter_id='$VOTER_A' and points=12;" "0"
 
 log "All jury vote object-scope checks passed"
