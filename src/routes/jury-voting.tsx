@@ -23,6 +23,8 @@ import {
   preflightCountryJuryVote,
 } from "@/integrations/jury-voting/jury-voting.functions";
 import { buildTelevotingClientIdentity } from "@/integrations/televoting/anti-abuse";
+import { VotingDeclarationCheckbox, VotingIntegrityReasonList } from "@/components/voting/VotingIntegrityExplanation";
+import { VOTER_DECLARATION_LABELS, voterIntegrityMessage } from "@/integrations/televoting/voter-integrity-copy";
 import {
   VOTE_INTEGRITY_AUTOMATION,
   VOTE_INTEGRITY_CONSEQUENCE,
@@ -115,15 +117,6 @@ export const Route = createFileRoute("/jury-voting")({
   }),
   component: JuryVotingPage,
 });
-
-function severityLabel(severity: VoteIntegritySeverity) {
-  if (severity === "critical") return "Critical pattern";
-  if (severity === "high") return "High concern";
-  if (severity === "strong") return "Strong pattern";
-  if (severity === "review") return "Review required";
-  if (severity === "notable") return "Notable pattern";
-  return "No notable pattern";
-}
 
 function severityClass(severity: VoteIntegritySeverity) {
   if (severity === "critical") return "border-red-300/30 bg-red-300/10 text-red-100";
@@ -570,6 +563,15 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
     return (
       <div className="space-y-4">
         <DelayedConfirmationState pendingTitle="Jury ballot stored" pendingDescription={`Solaris has accepted ${country.name}'s jury ballot for ${round.show_name}. The official vote is already in the database.`} confirmedTitle="Jury vote confirmed" confirmedDescription={`${country.name}'s jury ballot for ${round.show_name} is recorded. The organizer can still correct it from the existing admin jury workspace if needed.`} />
+        {report?.interventionLevel === "provisional_review" ? (
+          <Panel title="Vote submitted for review" description="Your vote was recorded, not automatically rejected.">
+            <p className="text-sm">Organizers will review the patterns before deciding whether action is needed.</p>
+          </Panel>
+        ) : report?.requiresAttestation ? (
+          <Panel title="Declaration submitted" description="Your signed declaration was recorded with your ballot.">
+            <p className="text-sm">Organizers may review your vote if further checks are needed.</p>
+          </Panel>
+        ) : null}
         {submissionReceipt ? (
           <Panel title="Authoritative receipt" description="Issued by Solaris after the canonical ballot commit">
             <dl className="grid gap-3 text-sm sm:grid-cols-2" data-v3-jury-receipt="authoritative">
@@ -592,17 +594,17 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       <div className="space-y-4">
         {report.interventionLevel === "notice" || report.interventionLevel === "review" ? (
           <section className={cn("rounded-2xl border p-5 sm:p-7", severityClass(report.severity))}>
-            <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-6 shrink-0" /><div><p className="text-xs font-black uppercase tracking-[0.15em]">Voting integrity review</p><h2 className="mt-2 text-2xl font-black">Review your jury ballot before submitting</h2><p className="mt-2 text-sm leading-6 opacity-85">Solaris found an unusual pattern, but the evidence does not require a declaration. This is not a finding of misconduct.</p></div></div>
+            <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-6 shrink-0" /><div><p className="text-xs font-black uppercase tracking-[0.15em]">Voting integrity review</p><h2 className="mt-2 text-2xl font-black">{voterIntegrityMessage(report.interventionLevel).title}</h2><p className="mt-2 text-sm leading-6 opacity-85">{voterIntegrityMessage(report.interventionLevel).body}</p></div></div>
           </section>
         ) : (
-          <Panel title="Integrity check complete" description="No additional declaration is required">
-            <p className="text-sm leading-6 text-muted-foreground">Your ballot has passed the preliminary checks. It has not been submitted. Review each allocation before confirming the official vote.</p>
+          <Panel title="Voting check complete" description="No extra steps needed">
+            <p className="text-sm leading-6 text-muted-foreground">Your vote has not been submitted yet. Check your scores before confirming.</p>
           </Panel>
         )}
         <JuryBallotReview round={round} selections={selections} />
         {report.interventionLevel === "notice" || report.interventionLevel === "review" ? <IntegrityEvidence report={report} /> : null}
         <Panel title="Final submission" description="No ballot has been recorded yet">
-          <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!v3ReliabilityEnabled || submitMutation.isPending} onClick={() => submitMutation.mutate(report.token)}><CheckCircle2 className="size-4" /> {checkingSubmission ? "Checking submission status…" : submitMutation.isPending ? "Submitting…" : "My ballot is correct · submit"}</Button></div>
+          <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!v3ReliabilityEnabled || submitMutation.isPending} onClick={() => submitMutation.mutate(report.token)}><CheckCircle2 className="size-4" /> {checkingSubmission ? "Checking submission status…" : submitMutation.isPending ? "Submitting…" : "My votes are correct · submit"}</Button></div>
         </Panel>
       </div>
     );
@@ -618,16 +620,14 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
               <div className="flex flex-wrap items-center gap-2">
                 <ShieldAlert className="size-5 shrink-0" />
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]">Voting integrity review</p>
-                <span className="rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-semibold">
-                  Risk signal {report.riskScore}/100
-                </span>
+                
               </div>
-              <h2 className="mt-3 text-xl font-bold tracking-[-.02em]">Solaris found an unusual pattern</h2>
+              <h2 className="mt-3 text-xl font-bold tracking-[-.02em]">{voterIntegrityMessage(report.interventionLevel).title}</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 opacity-90">
-                This is not a finding of misconduct. Automated analysis compared this ballot with recent-weighted historical jury and televote patterns connected to your delegation and HOD history.
+                {voterIntegrityMessage(report.interventionLevel).body}
               </p>
               <p className="mt-2 text-sm leading-6 opacity-80">
-                You can change the ballot, or continue with the declaration if the ballot genuinely reflects your independent preferences.
+                Nothing has been submitted yet. You can still change your votes.
               </p>
             </div>
             <button type="button" onClick={returnToBallot} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-current/25 bg-black/10 px-4 text-sm font-semibold"><ArrowLeft className="size-4" /> Change ballot</button>
@@ -635,15 +635,16 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         </section>
         <JuryBallotReview round={round} selections={selections} />
         <IntegrityEvidence report={report} />
-        <Panel title="Voting Integrity Declaration" description={report.interventionLevel === "provisional_review" ? "This ballot will be recorded for organizer review after you sign. Automated analysis does not delete it." : "Sign only if this ballot is genuinely independent."}>
+        <Panel title="Voting declaration" description={report.interventionLevel === "provisional_review" ? "Your vote will be recorded for organizer review after you sign. It will not be rejected automatically." : "Read and confirm each statement before submitting."}>
           <div className="space-y-3">
-            <IntegrityCheckbox checked={acceptedAutomatic} onChange={setAcceptedAutomatic}>{VOTE_INTEGRITY_AUTOMATION}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedIndependence} onChange={setAcceptedIndependence}>{VOTE_INTEGRITY_INDEPENDENCE}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedCoordination} onChange={setAcceptedCoordination}>{VOTE_INTEGRITY_COORDINATION}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedPressure} onChange={setAcceptedPressure}>{VOTE_INTEGRITY_PRESSURE}</IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedConsequences} onChange={setAcceptedConsequences}>{VOTE_INTEGRITY_CONSEQUENCE}</IntegrityCheckbox>
+            <p className="text-xs text-muted-foreground">The full wording of each statement is available below it and is part of what you sign.</p>
+            <VotingDeclarationCheckbox checked={acceptedAutomatic} onChange={setAcceptedAutomatic} shortText={VOTER_DECLARATION_LABELS.automation} fullText={VOTE_INTEGRITY_AUTOMATION} />
+            <VotingDeclarationCheckbox checked={acceptedIndependence} onChange={setAcceptedIndependence} shortText={VOTER_DECLARATION_LABELS.independence} fullText={VOTE_INTEGRITY_INDEPENDENCE} />
+            <VotingDeclarationCheckbox checked={acceptedCoordination} onChange={setAcceptedCoordination} shortText={VOTER_DECLARATION_LABELS.coordination} fullText={VOTE_INTEGRITY_COORDINATION} />
+            <VotingDeclarationCheckbox checked={acceptedPressure} onChange={setAcceptedPressure} shortText={VOTER_DECLARATION_LABELS.pressure} fullText={VOTE_INTEGRITY_PRESSURE} />
+            <VotingDeclarationCheckbox checked={acceptedConsequences} onChange={setAcceptedConsequences} shortText={VOTER_DECLARATION_LABELS.consequences} fullText={VOTE_INTEGRITY_CONSEQUENCE} />
             <label className="block rounded-xl border border-border bg-surface p-3"><span className="text-[10px] font-black uppercase tracking-[0.13em] text-muted-foreground">Type your Solaris username to sign</span><input value={signedName} onChange={(event) => setSignedName(event.target.value)} placeholder={country.username} className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" /></label>
-            <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!v3ReliabilityEnabled || !canSign || attestationMutation.isPending || submitMutation.isPending} onClick={() => attestationMutation.mutate()}>{attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : "Sign declaration and submit jury vote"}</Button></div>
+            <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={!v3ReliabilityEnabled || !canSign || attestationMutation.isPending || submitMutation.isPending} onClick={() => attestationMutation.mutate()}>{attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : "Sign and submit jury vote"}</Button></div>
           </div>
         </Panel>
       </div>
@@ -677,7 +678,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         </div>
         <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm"><input type="checkbox" checked={acceptedRule} onChange={(event) => setAcceptedRule(event.target.checked)} className="mt-0.5" /><span className="leading-relaxed text-muted-foreground">I confirm that this ballot reflects my own independent preferences and is not part of an agreed or reciprocal voting arrangement.</span></label>
         <GovernanceInlineReference context="jury.vote" ruleIds={["9.2", "11.2", "11.4"]} label="Voting rules" />
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground"><span>{ballot.length}/{round.point_scale.length} scores assigned</span><span aria-live="polite">{!v3ReliabilityEnabled ? "Saved on this device" : draftStatus === "loading" ? "Loading server draft…" : draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? `Saved · revision ${serverRevision}` : draftStatus === "conflict" ? "Save conflict" : "Saved on this device · reconnect to sync"}</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-primary" /> Integrity v4 · recent editions weighted most</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground"><span>{ballot.length}/{round.point_scale.length} scores assigned</span><span aria-live="polite">{!v3ReliabilityEnabled ? "Saved on this device" : draftStatus === "loading" ? "Loading server draft…" : draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? `Saved · revision ${serverRevision}` : draftStatus === "conflict" ? "Save conflict" : "Saved on this device · reconnect to sync"}</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-primary" /> Votes checked before submission</span></div>
         <Button className="w-full" disabled={!v3ReliabilityEnabled || !complete || !acceptedRule || preflightMutation.isPending || submitMutation.isPending} onClick={() => preflightMutation.mutate()}><Vote className="size-4" />{preflightMutation.isPending || submitMutation.isPending ? "Checking ballot…" : "Review and submit jury vote"}</Button>
       </div>
     </Panel>
@@ -704,23 +705,5 @@ function JuryBallotReview({ round, selections }: { round: JuryRound; selections:
 }
 
 function IntegrityEvidence({ report }: { report: VoteIntegrityReport }) {
-  return (
-    <Panel title="Why Solaris raised this" description="Statistical context, not a verdict">
-      <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground"><span className="rounded-full border border-border px-2.5 py-1">Risk {report.riskScore}/100</span>{report.confidence != null ? <span className="rounded-full border border-border px-2.5 py-1">Confidence {report.confidence}/100</span> : null}{report.modelVersion ? <span className="rounded-full border border-border px-2.5 py-1">{report.modelVersion}</span> : null}</div>
-      <div className="mt-3 space-y-3">
-        {report.findings.length ? report.findings.map((finding, index) => (
-          <article key={`${finding.lens}-${finding.targetCode}-${index}`} className="rounded-xl border border-border bg-surface p-4">
-            <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold">{finding.targetName}</p><span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{finding.lens === "hod" ? "HOD history" : "Country history"}</span><span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-[9px] font-bold text-amber-200">Signal {finding.riskScore}</span></div>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{finding.scopeLabel}</p>
-            <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">{finding.recentRisk != null ? <span>recent {finding.recentRisk}</span> : null}{finding.lifetimeRisk != null ? <span>lifetime {finding.lifetimeRisk}</span> : null}{finding.effectiveRecentEditions != null ? <span>{finding.effectiveRecentEditions.toFixed(2)} effective recent editions</span> : null}</div>
-            {finding.reasons.length ? <ul className="mt-3 space-y-1 text-xs leading-relaxed text-muted-foreground">{finding.reasons.map((reason) => <li key={reason}>• {reason}</li>)}</ul> : null}
-          </article>
-        )) : <p className="text-sm text-muted-foreground">The combined risk score crossed the automatic review threshold.</p>}
-      </div>
-    </Panel>
-  );
-}
-
-function IntegrityCheckbox({ checked, onChange, children }: { checked: boolean; onChange: (checked: boolean) => void; children: React.ReactNode }) {
-  return <label className={cn("flex items-start gap-3 rounded-xl border p-3 text-sm leading-relaxed transition", checked ? "border-emerald-300/20 bg-emerald-300/[0.05]" : "border-border bg-surface")}><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-0.5" /><span className="text-muted-foreground">{children}</span></label>;
+  return <VotingIntegrityReasonList categories={report.reasonCategories} />;
 }
