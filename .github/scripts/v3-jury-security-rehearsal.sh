@@ -192,4 +192,11 @@ expect_json "legacy ballot recognized" submitted true
 expect_json "legacy receipt remains unavailable" found false
 expect_json "legacy status explicit" legacy true
 
+# Run the new dual-method acceptance on the same loopback-only Auth/REST fixture.
+# This script also runs against an upgraded current-main worktree. The
+# migration delta is applied to that worktree, but helper scripts stay in the
+# candidate checkout. Resolve the sibling from this script's own location.
+JURY_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$JURY_SCRIPT_DIR/v3-jury-dual-method-security-local.sh"
+
 log "PASS: V3 Jury hostile security rehearsal complete"

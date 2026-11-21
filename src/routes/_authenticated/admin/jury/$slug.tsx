@@ -44,6 +44,7 @@ import {
   useShowVoters,
   useShows,
   type Voter,
+  type JuryVote,
   type VoterKind,
   type VoterOption,
 } from "@/lib/data";
@@ -197,7 +198,38 @@ function JuryWorkspace() {
     [allParticipants, selectedShow?.id],
   );
   const { data: showVoters = [], isLoading: loadingVoters } = useShowVoters(selectedShow?.id);
-  const { data: juryVotes = [], isLoading: loadingVotes } = useJuryVotes(selectedShow?.id);
+  const { data: acceptedJuryVotes = [], isLoading: loadingAcceptedVotes } = useJuryVotes(selectedShow?.id);
+  const { data: pendingManualJuryVotes = [], isLoading: loadingManualVotes } = useQuery({
+    enabled: !!selectedShow?.id,
+    queryKey: ["v3_organizer_jury_manual_snapshot", selectedShow?.id ?? "pending"],
+    queryFn: async () => {
+      if (!selectedShow?.id) return [] as JuryVote[];
+      const { data, error } = await (supabase as any).rpc("v3_organizer_jury_manual_snapshot", {
+        p_show_id: selectedShow.id,
+      });
+      if (error) throw error;
+      return (data ?? []) as JuryVote[];
+    },
+  });
+  // Incomplete manual allocations are private drafts. Accepted ballots come
+  // from jury_votes; presenting both never double-counts a completed ballot.
+  const juryVotes = useMemo(() => {
+    const draftCountries = new Set(
+      pendingManualJuryVotes.map((vote) => vote.voter_country_id).filter(Boolean),
+    );
+    const draftVoters = new Set(
+      pendingManualJuryVotes.map((vote) => vote.voter_id).filter(Boolean),
+    );
+    // The canonical results keep the previously accepted manual ballot until a
+    // correction is complete. Show the Organizer's private pending draft in the
+    // editor instead of stacking old accepted rows on top of the draft.
+    const acceptedWithoutPendingCorrections = acceptedJuryVotes.filter((vote) =>
+      !(vote.voter_country_id && draftCountries.has(vote.voter_country_id)) &&
+      !(vote.voter_id && draftVoters.has(vote.voter_id))
+    );
+    return [...acceptedWithoutPendingCorrections, ...pendingManualJuryVotes];
+  }, [acceptedJuryVotes, pendingManualJuryVotes]);
+  const loadingVotes = loadingAcceptedVotes || loadingManualVotes;
   const { data: ballotStatuses = [], isLoading: loadingStatuses } = useQuery({
     enabled: !!selectedShow?.id,
     queryKey: ["jury_ballot_statuses", "show", selectedShow?.id ?? "pending"],
@@ -292,6 +324,7 @@ function JuryWorkspace() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["voters"] }),
       qc.invalidateQueries({ queryKey: ["jury_votes"] }),
+      qc.invalidateQueries({ queryKey: ["v3_organizer_jury_manual_snapshot"] }),
       qc.invalidateQueries({ queryKey: ["jury_ballot_statuses"] }),
       qc.invalidateQueries({ queryKey: ["jury_ballot_submissions"] }),
       qc.invalidateQueries({ queryKey: ["admin-readiness-data"] }),
@@ -310,51 +343,83 @@ function JuryWorkspace() {
     return { voterId: option?.voterId ?? null, countryId: option?.countryId ?? null };
   }
 
-  async function assign(voterKey: string, receiver: string, points: number) {
-    if (!edition || !selectedShow) return;
+  async function applyManualScore(
+    voterKey: string,
+    points: number,
+    action: "assign" | "clear",
+    receiver?: string,
+  ) {
+    if (!edition || !selectedShow || !actorId || busy) return;
     if (didNotVoteVoterKeys.has(voterKey)) {
       toast.error("Restore this jury ballot before assigning points.");
       return;
     }
     const { voterId, countryId } = decodeVoterKey(voterKey);
     const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
-    const target = identityFor(receiver);
-    const { error } = await (supabase as any).rpc("assign_jury_vote", {
-      p_edition_id: edition.id,
-      p_show_id: selectedShow.id,
-      p_voter_id: voterId,
-      p_voter_country_id: voterIdentity.country_id,
-      p_voter_entity_id: voterIdentity.contest_entity_id,
-      p_receiving_country_id: target.country_id,
-      p_receiving_entity_id: target.contest_entity_id,
-      p_points: points,
-    });
-    if (error) {
-      toast.error(reportSupabaseError(error, "Could not save that jury score. Nothing was changed."));
-      return;
+    const target = receiver ? identityFor(receiver) : { country_id: null, contest_entity_id: null };
+    const activeShowId = selectedShow.id;
+    const activeEditionId = edition.id;
+    setBusy(true);
+    try {
+      const preview = await (supabase as any).rpc("v3_organizer_jury_score_preview", {
+        p_edition_id: activeEditionId,
+        p_show_id: activeShowId,
+        p_voter_id: voterId,
+        p_voter_country_id: voterIdentity.country_id,
+        p_voter_entity_id: voterIdentity.contest_entity_id,
+      });
+      if (preview.error) throw preview.error;
+      if (preview.data?.lockedByAccount) {
+        throw new Error("This country submitted through its account. Ordinary score entry cannot alter its official ballot. Use Jury ballot review.");
+      }
+      let reason: string | null = null;
+      if (preview.data?.complete) {
+        reason = window.prompt("Reason for correcting this completed Organizer-entered Jury ballot:");
+        if (!reason?.trim()) return;
+      }
+      const operation = createOrganisationCommand({
+        command: `jury.manual.${action}`,
+        payload: { showId: activeShowId, voterKey, points, action, target },
+        riskClass: "R2",
+        scope: {
+          editionId: activeEditionId,
+          showId: activeShowId,
+          entityId: voterId ?? voterIdentity.contest_entity_id ?? voterIdentity.country_id,
+        },
+        expectedVersion: Number(preview.data?.expectedVersion ?? 0),
+      });
+      const { data, error } = await (supabase as any).rpc("v3_organizer_jury_score_apply", {
+        p_edition_id: activeEditionId,
+        p_show_id: activeShowId,
+        p_voter_id: voterId,
+        p_voter_country_id: voterIdentity.country_id,
+        p_voter_entity_id: voterIdentity.contest_entity_id,
+        p_receiving_country_id: target.country_id,
+        p_receiving_entity_id: target.contest_entity_id,
+        p_points: points,
+        p_action: action,
+        p_expected_version: Number(preview.data?.expectedVersion ?? 0),
+        p_operation_id: operation.operationId,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      toast.success(data?.complete
+        ? "Official Organizer Jury ballot complete. Results updated."
+        : `Manual Jury draft saved (${data?.scoreCount ?? 0}/${data?.requiredScoreCount ?? 10}).`);
+      await refresh();
+    } catch (caught) {
+      toast.error(reportSupabaseError(caught, "Jury score was not changed. Refresh before trying again."));
+    } finally {
+      setBusy(false);
     }
-    await qc.invalidateQueries({ queryKey: ["jury_votes"] });
-    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+  }
+
+  async function assign(voterKey: string, receiver: string, points: number) {
+    await applyManualScore(voterKey, points, "assign", receiver);
   }
 
   async function clearPoint(voterKey: string, points: number) {
-    if (!edition || !selectedShow) return;
-    const { voterId, countryId } = decodeVoterKey(voterKey);
-    const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
-    const { error } = await (supabase as any).rpc("clear_jury_point", {
-      p_edition_id: edition.id,
-      p_show_id: selectedShow.id,
-      p_voter_id: voterId,
-      p_voter_country_id: voterIdentity.country_id,
-      p_voter_entity_id: voterIdentity.contest_entity_id,
-      p_points: points,
-    });
-    if (error) {
-      toast.error(reportSupabaseError(error, "Could not clear that jury score. Nothing was changed."));
-      return;
-    }
-    await qc.invalidateQueries({ queryKey: ["jury_votes"] });
-    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+    await applyManualScore(voterKey, points, "clear");
   }
 
   async function setDidNotVote(voterKey: string, didNotVote: boolean) {
@@ -765,6 +830,20 @@ function JuryWorkspace() {
         <Metric label="Did not vote" value={didNotVoteCount} />
         <Metric label="Remaining" value={remainingVoters} />
       </div>
+
+      {pendingManualJuryVotes.some((draft) =>
+        acceptedJuryVotes.some((accepted) =>
+          (draft.voter_country_id && accepted.voter_country_id === draft.voter_country_id) ||
+          (draft.voter_id && accepted.voter_id === draft.voter_id)
+        )
+      ) ? (
+        <AdminCard className="mb-4">
+          <p className="text-sm font-semibold">Jury correction draft in progress</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            The last completed Organizer ballot remains in official results until all revised scores are assigned. The editor shows the pending correction.
+          </p>
+        </AdminCard>
+      ) : null}
 
       {conflictingStatuses.length ? (
         <AdminCard className="mb-4 !border-rose-200/20 !bg-rose-200/[0.05]">
