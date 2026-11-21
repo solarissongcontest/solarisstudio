@@ -24,7 +24,7 @@ export function SolarisMorphingSelection({
   className?: string;
   layout?: "equal" | "scroll";
 }) {
-  const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
+  const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
   const count = Math.max(1, options.length);
   const focusIndex = options.findIndex((option) => option.value === value && !option.disabled);
   const tabStop = focusIndex >= 0 ? focusIndex : options.findIndex((option) => !option.disabled);
@@ -53,12 +53,12 @@ export function SolarisMorphingSelection({
       )}
       style={layout === "equal" ? { gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` } : undefined}
     >
-      {layout === "equal" ? <span
+      {layout === "equal" && selectedIndex >= 0 ? <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-y-1 rounded-lg border border-white/[0.08] bg-white/[0.07] transition-[transform,width] duration-200 ease-out motion-reduce:transition-none"
+        className="pointer-events-none absolute inset-y-1 rounded-lg border border-white/[0.08] bg-white/[0.07] transition-[inset-inline-start,width] duration-200 ease-out motion-reduce:transition-none"
         style={{
           width: `calc((100% - .5rem) / ${count})`,
-          transform: `translateX(calc(${selectedIndex} * 100%))`,
+          insetInlineStart: `calc(.25rem + ${selectedIndex} * (100% - .5rem) / ${count})`,
         }}
       /> : null}
       {options.map((option, index) => {
