@@ -26,6 +26,14 @@ describe("show line-up lifecycle", () => {
     expect(workspace).toContain('producer_choice: "Producer choice"');
   });
 
+  it("migrates active-only atomic allocation and order RPCs", () => {
+    const activeMigration = source("supabase/migrations/20261121203500_live_lineup_excludes_inactive_participants.sql");
+    expect(activeMigration).toContain("every active show participant exactly once.");
+    expect(activeMigration).toContain("coalesce(p.participation_status, 'confirmed') = 'confirmed'");
+    expect(activeMigration).toContain("p.running_order is distinct from");
+    expect(activeMigration).toContain("p.running_order_allocation is distinct from");
+  });
+
   it("preserves a deep-linked show while the show list is loading", () => {
     expect(workspace).toContain('const [showId, setShowId] = useState(initialShow ?? "");');
     expect(workspace).toContain("if (!orderedShows.length) return;");
