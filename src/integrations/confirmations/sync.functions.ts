@@ -53,6 +53,8 @@ export type ConfirmationSolarisSyncResult = {
     | "unmatched_edition"
     | "canonical_newer"
     | "canonical_owned"
+    | "superseded_submission"
+    | "source_changed"
     | "publication_event_failed";
   editionId?: string;
   countryId?: string;
@@ -682,6 +684,26 @@ export async function syncConfirmationSubmissionToSolarisInternal(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
   const snapshot = await loadConfirmationSnapshotForSolarisSync(db, submissionId);
+  // Reconciliation can traverse historical submissions for the same country.
+  // The latest in-place response owns the projection; older submissions are
+  // history and must never overwrite it, even on delayed/out-of-order retries.
+  const current = await db
+    .from("submissions")
+    .select("id")
+    .eq("edition_id", snapshot.edition?.id)
+    .eq("country", snapshot.country)
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (current.error) throw new Error(current.error.message);
+  if (current.data?.id && current.data.id !== submissionId) {
+    return {
+      ok: true,
+      status: "superseded_submission",
+      message: "Historical Confirmation skipped; the newest response remains authoritative.",
+    };
+  }
   return syncConfirmationSnapshotToSolarisInternal(snapshot);
 }
 
@@ -712,5 +734,5 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
     if (data.editionId && snapshot.edition?.id !== data.editionId) {
       throw new Error("Confirmation no longer belongs to the selected Organizer edition.");
     }
-    return syncConfirmationSnapshotToSolarisInternal(snapshot);
+    return syncConfirmationSubmissionToSolarisInternal(data.submissionId);
   });
