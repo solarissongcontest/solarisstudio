@@ -93,3 +93,24 @@ export const VOTER_DECLARATION_LABELS = {
   pressure: "Nobody pressured me or told me how to vote.",
   consequences: "I understand this declaration is saved. Knowingly lying could lead to my vote being removed or other SSC penalties, including a ban.",
 } as const;
+
+/** Make known preflight/signature failures understandable without masking other errors. */
+export function voterIntegrityErrorMessage(error: unknown, fallback: string) {
+  const raw = error instanceof Error ? error.message : "";
+  if (/integrity check expired|voting check expired/i.test(raw)) {
+    return "Your voting check has expired. Please check your votes again before submitting.";
+  }
+  if (/connection (?:or device identity )?changed|connection fingerprint changed/i.test(raw)) {
+    return "Your connection changed during the voting check. Please check your votes again.";
+  }
+  if (/outdated statement|declaration was invalidated/i.test(raw)) {
+    return "This declaration needs to be signed again. Please return to your votes and repeat the check.";
+  }
+  if (/all voting-integrity declarations must be acknowledged/i.test(raw)) {
+    return "Please confirm all five statements before continuing.";
+  }
+  if (/type the same username|username.*sign|signature.*match/i.test(raw)) {
+    return "Your username doesn't match. Please enter the same username you used to vote.";
+  }
+  return raw || fallback;
+}
