@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback } from "react";
 import { LIMITED_PUBLIC_LAUNCH, limitedPublicLaunchAllows, publicLaunchAllows, publicLaunchPath, type PublicLaunchFlags } from "./public-launch-availability";
+import { isAdminPreviewPagePath } from "./admin-page-preview";
 import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenancePublicAccountRouteAllowed,
@@ -9,6 +10,7 @@ import {
 export type PublicLaunchAvailability = {
   active: boolean;
   flags: PublicLaunchFlags;
+  adminPreview?: boolean;
   checking: boolean;
   error: boolean;
   retry: () => void;
@@ -16,6 +18,7 @@ export type PublicLaunchAvailability = {
 export const PublicLaunchContext = createContext<PublicLaunchAvailability>({
   active: false,
   flags: {},
+  adminPreview: false,
   checking: false,
   error: false,
   retry: () => {},
@@ -25,13 +28,13 @@ export function usePublicLaunchAvailability() {
   // Future full-V3 feature-flag policy remains independent of temporary P0
   // Worker maintenance gating. Existing consumers/tests rely on this contract.
   const allows = useCallback(
-    (href: string) => !state.active || publicLaunchAllows(href, state.flags),
-    [state.active, state.flags],
+    (href: string) => !state.active || (state.adminPreview === true && isAdminPreviewPagePath(href)) || publicLaunchAllows(href, state.flags),
+    [state.active, state.adminPreview, state.flags],
   );
   const allowsReleased = useCallback((href: string) => {
     // The restricted Worker gate also controls public links before the optional
     // availability provider mounts; Organizer's `allows` contract stays intact.
-    if (LIMITED_PUBLIC_LAUNCH && !limitedPublicLaunchAllows(href)) return false;
+    if (LIMITED_PUBLIC_LAUNCH && !limitedPublicLaunchAllows(href) && !(state.adminPreview && isAdminPreviewPagePath(href))) return false;
     if (!allows(href)) return false;
     if (!GLOBAL_MAINTENANCE_MODE) return true;
     const path = publicLaunchPath(href);
@@ -50,6 +53,6 @@ export function usePublicLaunchAvailability() {
 
     return isMaintenancePublicWebsiteRouteAllowed(path, "GET", true) ||
       isMaintenancePublicAccountRouteAllowed(path, "GET", true);
-  }, [allows]);
+  }, [allows, state.adminPreview]);
   return { ...state, allows, allowsReleased };
 }
