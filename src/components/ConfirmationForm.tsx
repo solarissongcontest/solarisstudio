@@ -43,7 +43,11 @@ import {
   submitConfirmation,
   type PublicRound,
 } from "@/lib/public.functions";
-import { prefillFromSubmission } from "@/lib/prefill";
+import { prefillFromSubmission, prefillSelectionSongCache } from "@/lib/prefill";
+import {
+  switchConfirmationSelectionMethod,
+  type SelectionSongCache,
+} from "@/lib/confirmation-selection-switch";
 import {
   clearLocalDraft,
   getBrowserSessionId,
@@ -61,6 +65,7 @@ import {
   type ConfirmationPayload,
   type DateType,
   type EntryCredit,
+  type SelectionMethod,
 } from "@/lib/ssc";
 
 const STEPS = ["Delegation", "Participation", "Selection", "Entry", "Release", "Review"] as const;
@@ -269,6 +274,10 @@ export function ConfirmationForm({
   const [done, setDone] = useState<null | "submitted" | "not_participating">(null);
   const [blocked, setBlocked] = useState<string | null>(null);
   const [editingExisting, setEditingExisting] = useState(Boolean(prefill));
+  const [proposedMethod, setProposedMethod] = useState<SelectionMethod | null>(null);
+  const selectionSongCache = useRef<SelectionSongCache>(
+    prefill ? prefillSelectionSongCache(prefill) : {},
+  );
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [restored, setRestored] = useState<string | null>(null);
@@ -285,6 +294,15 @@ export function ConfirmationForm({
     setDraftConflict(null);
     dirty.current = false;
   };
+
+  function applySelectionMethod(next: SelectionMethod) {
+    const switched = switchConfirmationSelectionMethod(data, next, selectionSongCache.current);
+    selectionSongCache.current = switched.cache;
+    dirty.current = true;
+    setData(switched.payload);
+    setErrors({});
+    setProposedMethod(null);
+  }
 
   const set = <K extends keyof ConfirmationPayload>(key: K, value: ConfirmationPayload[K]) => {
     dirty.current = true;
@@ -619,6 +637,7 @@ export function ConfirmationForm({
         }
         if (result.exists && result.canEdit && result.submission) {
           setEditingExisting(true);
+          selectionSongCache.current = prefillSelectionSongCache(result.submission);
           setData((current) => prefillFromSubmission(result.submission, current));
         }
       } finally {
@@ -842,18 +861,32 @@ export function ConfirmationForm({
                 ]}
                 value={data.selection_method}
                 onChange={(value) => {
-                  const next = value as ConfirmationPayload["selection_method"];
-                  if (next !== data.selection_method) {
-                    set("artist", ""); set("song_title", ""); set("song_url", "");
-                    set("credits", []);
-                    set("preview_start", ""); set("preview_end", "");
-                    set("final_clip_start", ""); set("final_clip_end", "");
-                    set("replacement_video_required", false); set("replacement_video_url", "");
-                  }
-                  set("selection_method", next);
+                  const next = value as SelectionMethod;
+                  if (next === data.selection_method) return;
+                  if (editingExisting || editToken) setProposedMethod(next);
+                  else applySelectionMethod(next);
                 }}
               />
             </Field>
+            {proposedMethod ? (
+              <div role="alert" className="rounded-xl border border-amber-300/35 bg-amber-300/[0.06] p-4 text-sm">
+                <p className="font-semibold">Change this submitted selection method?</p>
+                <p className="mt-1 leading-6 text-muted-foreground">
+                  The existing Confirmation will stay the same record. Previous songs,
+                  National Final candidates and history remain recoverable, but the newly
+                  active entry needs Organizer review before becoming official.
+                  Published or competition-locked entries require a separate correction.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => setProposedMethod(null)}>
+                    Keep current method
+                  </Button>
+                  <Button type="button" onClick={() => applySelectionMethod(proposedMethod)}>
+                    Change selection method
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </>
         ) : null}
 
