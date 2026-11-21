@@ -26,7 +26,7 @@ import {
 } from "@/integrations/televoting/anti-abuse";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { VotingDeclarationCheckbox, VotingIntegrityReasonList } from "@/components/voting/VotingIntegrityExplanation";
-import { VOTER_DECLARATION_LABELS, voterIntegrityMessage } from "@/integrations/televoting/voter-integrity-copy";
+import { VOTER_DECLARATION_LABELS, voterIntegrityMessage, voterIntegrityErrorMessage } from "@/integrations/televoting/voter-integrity-copy";
 import {
   VOTE_INTEGRITY_AUTOMATION,
   VOTE_INTEGRITY_CONSEQUENCE,
@@ -289,7 +289,7 @@ export function TelevotingBooth({
       submitMutation.mutate({ token: report.token, ballot, identity });
     },
     onError: (caught) => {
-      toast.error(caught instanceof Error ? caught.message : "Automatic voting integrity check failed");
+      toast.error(voterIntegrityErrorMessage(caught, "We couldn\u0027t check your votes right now. Nothing has been submitted. Please try again."));
     },
   });
 
@@ -313,7 +313,7 @@ export function TelevotingBooth({
     },
     onSuccess: (payload) => submitMutation.mutate(payload),
     onError: (caught) => {
-      toast.error(caught instanceof Error ? caught.message : "Could not record the integrity declaration");
+      toast.error(voterIntegrityErrorMessage(caught, "We couldn\u0027t record your declaration. Nothing has been submitted. Please try again."));
     },
   });
 
