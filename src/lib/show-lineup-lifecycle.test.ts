@@ -104,6 +104,8 @@ describe("show line-up lifecycle", () => {
   it("keeps inactive entries off the live published performance order", () => {
     expect(publicShow).toContain("const rows = participantRows.filter(isCompetingParticipant)");
     expect(publicShow).toContain("value={participantRows.filter(isCompetingParticipant).length}");
+    expect(publicShow).toContain("publicLineupParticipants.map((participant, index)");
+    expect(publicShow).toContain("{index + 1}");
   });
 
   it("keeps the public pre-order line-up alphabetical and unnumbered", () => {
