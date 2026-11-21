@@ -11,7 +11,7 @@ import {
   lookupV3JuryReceiptServer,
   reconcileV3JurySubmissionServer,
   submitV3JuryBallotServer,
-} from "./jury-actions.server";
+} from "@/integrations/v3/jury-actions.server";
 
 const showId = "synthetic-semi-one";
 const operationId = "synthetic-operation";
