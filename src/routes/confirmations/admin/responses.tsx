@@ -580,8 +580,8 @@ function ConfirmationResponsesList() {
           Loading responses…
         </AdminCard>
       ) : mode === "confirmations" && error ? (
-        <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]" role="alert">
-          <div className="flex items-start gap-3">
+        <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]">
+          <div role="alert" className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
             <div>
               <p className="font-semibold">Responses could not be loaded</p>
