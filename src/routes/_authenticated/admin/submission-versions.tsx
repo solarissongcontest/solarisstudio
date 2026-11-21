@@ -305,6 +305,7 @@ function SubmissionVersionsPage() {
                     <ConfirmationVersionHistory
                       key={detailQuery.data.id}
                       submissionId={detailQuery.data.id}
+                      editionId={editionId}
                       currentSnapshot={currentSnapshot(detailQuery.data)}
                       scopeLabel={restoreScopeLabel}
                     />
