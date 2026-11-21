@@ -62,6 +62,33 @@ describe("show line-up lifecycle", () => {
     expect(workspace).toContain('await setStage("running_order")');
   });
 
+  it("offers balanced random/bulk assignment without writing until save", () => {
+    expect(workspace).toContain('randomizeAllocation("all")');
+    expect(workspace).toContain('randomizeAllocation("unassigned")');
+    expect(workspace).toContain("fillUnallocated(group)");
+    expect(workspace).toContain("Random balanced draw");
+    expect(workspace).toContain("Randomize blanks");
+    expect(workspace).toContain("allocationCounts[group]");
+    expect(workspace).toContain("setAllocationDirty(true)");
+    expect(workspace).toContain("snapshotAllocationDraft()");
+  });
+
+  it("uses touch and pointer dragging with stable draft positions", () => {
+    expect(workspace).toContain("onPointerDown={(event) => startRunningOrderDrag(event, participant.id)}");
+    expect(workspace).toContain("onPointerMove={moveRunningOrderDrag}");
+    expect(workspace).toContain("onPointerUp={finishRunningOrderDrag}");
+    expect(workspace).toContain('document.elementFromPoint(event.clientX, event.clientY)');
+    expect(workspace).toContain("reorderRunningOrder(current, drag.id, targetId)");
+    expect(workspace).toContain("touch-none cursor-grab");
+    expect(workspace).toContain("onKeyDown={(event) => {");
+    expect(workspace).toContain("{index + 1}</span>");
+    expect(workspace).toContain("onClick={() => moveEntry(index, -1)}");
+  });
+
+  it("resets an allocation draw only for live show participants", () => {
+    expect(workspace).toContain('.in("id", lifecycleParticipants.map((participant) => participant.id))');
+  });
+
   it("keeps allocation and running-order edits local until one atomic save", () => {
     expect(workspace).toContain("allocationDraft");
     expect(workspace).toContain("runningOrderDraft");
