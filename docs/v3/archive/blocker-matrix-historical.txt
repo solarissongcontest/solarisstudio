@@ -1,0 +1,40 @@
+V3 CRITICAL BLOCKERS / SOLUTIONS — LIVE-INSPECTED RESEARCH NOTE
+Repo: https://github.com/solarissongcontest/solarisstudio
+Observed main at file creation: 46355b8b9aec5045c7f8ba82d5e2eeb969767151
+WARNING: GitHub rapidly changes; statements below are snapshots, never promises about future CI.
+
+PRIORITY 1 — Chat 14: release certification
+#2119 S14 test-sweep candidate had S13, S15, freshness and budget green; Browser, Quality and S14 tests were still in progress at last exact-head check. #2202 S10–S16 evidence integration existed but had prior freshness failure. Solution: exact-head reread; finish #2119 and #2202; keep final candidate S14 full-contest / S15 zero-orphan / S16 canonical mutation authority distinct. No waiver.
+
+PRIORITY 2 — Chat 8: Organizer entry/media
+#2092 closed unmerged; replacements #2178 → #2179 → #2184 and #2196 are stacked. Media #2186/#2187 alternatives overlap. Solution: identify single parent chain; merge #2178 then strictly feature-only children, test stale review version/unsafe media, one Media candidate, close donors after verifying. Avoid accumulating new PRs.
+
+PRIORITY 3 — Chat 13: World
+TG1/TG2 #1888, TG3 directory #1934, bodies #2096, International #1941 merged. #2163 integrated World Search/Explore failed Quality+Browser+budget+freshness at older head; #2197 was merged afterward, offering safe minifier-only headroom. Solution: refresh #2163 on new main; check exact bundling, strict public rollout gate, query/RLS proof and URL search; complete World discoverability without enabling production flag; then TG4–TG19 canon with System migration owner.
+
+PRIORITY 4 — Chat 11: installed iOS PWA
+#2004 safe-zone PR passed all checked gates on head 5680bc2 but is draft/unmerged; #2008 dock on head 26a204c had Quality/budget green, Browser in progress and freshness failed. Solution: integrate #2004 if authorized, then synchronize #2008 once to latest main; preserve #2109 gesture guard, distinguish browser shell #2026, inspect Browser trace, collect real iPhone N14 evidence.
+
+PRIORITY 5 — Chat 10: voting
+Multiple safeguards #1741, #1784, #1783, #1768, #1780, #1757 merged. #1787 remained; old current-main freshness failed despite other green gates; #1771/#1776 System direct-writer dependencies. Solution: one latest-main integration, exact head all-green, account-key private cache, inspect direct-authority S16 with System owner. Never claim UI permission = backend mutation authority.
+
+PRIORITY 6 — Chat 7: administration
+#1499 Delegations, #1481 System Settings, #2192 platform mode bound merged. #1695 Access/Permissions and #1596 HOD remained. Solution: current-context exact edition/actor locking, close R3 review on context change, preserve two-person/version/idempotent command, merge narrow PRs.
+
+OTHER LANES:
+Chat 1: #2077 Search foundation merged; #2158/#2161 and Home #2154 stale/nonmergeable. Integrate parent-first Search enhancements and Coming Up separately; spoiler and debounce tests.
+Chat 2: #1990 Country/Wiki and #2153 former flags/name nonmergeable; #2148 Reference Entry links still draft. Current-main non-overlap extraction and three-experience visual tests.
+Chat 3: #2155 Archive links merged; #2152 Edition recovery/#2168 next Show stale; P9 Songs/Artists #1867 depends on canonical identity. Avoid legacy load fanout and phantom Music root.
+Chat 4: Results/Records #1224 provenance, #2139 spoiler merged; #1631 Live and #1658 Results consumer require work. No unpublished data fallback.
+Chat 5: #1590 duplicate Me Tasks, #1396 data fan-out, #1740 crawler privacy remain. Use one Task Center, actor/edition query keys, fail-closed reads.
+Chat 6: Fantasy parent #1891 then standings #2159, Following #1448/#2151 and identity #1442. Roster exact version eligibility, distinguish unavailable from zero, evict stale private cache.
+Chat 9: Control Room #2112 merged; #1454 reviews, #1705 Rundown save, #1725 readiness, #2199 Sync Health, #2200 Next in Line incomplete. Exact actor+edition state and receipts.
+Chat 12: #2090, #2104, #2162 merged; #2026 browser/app separation and #2164 focus restore open. Installed runtime != viewport. Preserve deep links and keyboard focus.
+
+CROSS-LANE SYSTEM ROOT CAUSES:
+1. Stale CI: GitHub latest head/test merge SHA, branch-protection and explicit main freshness; minimize churn and run exact checks after final code change. A failing PR freshness gate may be correct after another main merge.
+2. Client bundle + browser hydration: #2176 had genuine runtime failure due to unsafe broad shared chunks; #2189 repaired; #2197 safer minifier-only fix merged. NEVER reinstate unsafe grouping or raise 1,843,200-byte budget. Recheck new exact main before blaming old results.
+3. CI/Playwright production isolation: always disposable local Supabase; fail closed if local unavailable, no hosted testing, including legacy clients and previews.
+4. Account/edition privacy: actor+edition+round scoped cache, canceled queries, clear private caches on switch; server capabilities/RLS still mandatory.
+5. Project source truth: PR text and timestamps may be old; verify merge status/changed paths, no second canonical writer, no fake green checks, no production schema rollout while frontier is unreconciled.
+6. Release: even 14/14 lanes implemented is not proof that production migrations and rollout have been authorized. The repo production-frontier preflight previously documented unresolved hosted-vs-repo migration history; regenerate exact candidate evidence rather than copy historical counts.
