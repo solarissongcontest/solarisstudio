@@ -59,6 +59,11 @@ describe("show line-up lifecycle", () => {
     expect(atomicAllocation).toContain("Allocation draw must contain every show participant exactly once.");
   });
 
+  it("keeps inactive entries off the live published performance order", () => {
+    expect(publicShow).toContain("const rows = participantRows.filter(isCompetingParticipant)");
+    expect(publicShow).toContain("value={participantRows.filter(isCompetingParticipant).length}");
+  });
+
   it("keeps the public pre-order line-up alphabetical and unnumbered", () => {
     expect(publicShow).toContain("publicLineupParticipants");
     expect(publicShow).toContain("if (!publication.running_order) return rows.sort(byCountryName)");
