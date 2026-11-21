@@ -100,6 +100,16 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
     "primary",
     { keywords: ["country", "delegation"] },
   ),
+
+  destination("music", "/music", "explore", "Songs & artists", "Discover verified published songs and artist identities.", "primary", {
+    aliases: ["music catalogue", "music discovery"], keywords: ["songs", "artists", "performers", "credits"],
+  }),
+  destination("songs", "/songs", "explore", "Songs", "Browse published songs and their verified artist credits.", "secondary", {
+    parent: "music", keywords: ["track", "entry", "song catalogue"],
+  }),
+  destination("artists", "/artists", "explore", "Artists", "Find published artists and their Solaris performances.", "secondary", {
+    parent: "music", keywords: ["performer", "discography", "artist catalogue"],
+  }),
   destination("shows", "/shows", "explore", "Shows", "Semi-finals, finals, line-ups and broadcasts.", "primary", {
     keywords: ["semi-final", "final", "lineup"],
   }),

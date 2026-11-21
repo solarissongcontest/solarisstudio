@@ -31,7 +31,7 @@ export const SITE_DIRECTORY_AREA_LABELS: Record<PublicArea, string> = {
 /** A short explanation of each navigation family, shared by all three clients. */
 export const SITE_DIRECTORY_AREA_DESCRIPTIONS: Record<PublicArea, string> = {
   home: "What's happening now and the latest published updates.",
-  explore: "Countries, editions, shows, stories and reference material.",
+  explore: "Countries, editions, published music, shows, stories and reference material.",
   participate: "Your available participation actions and responsibilities.",
   results: "Official published results, records and analyses.",
   me: "Your Solaris account, activity and personal history.",

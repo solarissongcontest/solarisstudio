@@ -25,11 +25,13 @@ describe("V3 P34 Archive root", () => {
 
     expect(source).toContain('to: "/editions"');
     expect(source).toContain('to: "/countries"');
-    // Artist/Song identity is not yet an independent public catalogue. Archive
-    // retains a Wiki gateway; it cannot advertise a disabled Reference rollout.
-    expect(source).not.toContain('title: "Songs & artists"');
+    // P9 owns the first-class catalogue; Archive only offers a release-gated
+    // destination. Wiki remains the independent Reference route fallback.
+    expect(source).toContain('title: "Songs & artists"');
+    expect(source).toContain('to: "/music", group: "countries-stories"');
     expect(source).toContain('to: "/wiki", group: "reference-results"');
-    expect(source).not.toContain('to: "/music"');
+    const directory = read("src/components/v3/V3DirectoryFamilyIndex.tsx");
+    expect(directory).toContain('group.items.filter(item => allows(item.to))');
     expect(source).toContain('to: "/shows"');
     expect(source).toContain('to: "/stories"');
     // Archive links into the existing Results-owned records view, without

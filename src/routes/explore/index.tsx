@@ -9,6 +9,7 @@ import {
   Gamepad2,
   History,
   RadioTower,
+  Music2,
   Sparkles,
   ChevronRight,
   Search,
@@ -22,6 +23,7 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useEditions } from "@/lib/data";
 import { resolveActivePublicEdition } from "@/lib/v3-discovery-entities";
+import { selectExploreWebArchiveHighlights } from "@/lib/v3-explore-web-archive";
 import { V3ExploreRouteGate } from "@/components/v3/V3ExploreRouteGate";
 import "@/styles/explore-web-editorial.css";
 
@@ -31,7 +33,7 @@ export const Route = createFileRoute("/explore/")({
       { title: "Explore — Solaris Studio" },
       {
         name: "description",
-        content: "Browse Solaris Song Contest editions, countries, shows, stories and archive history.",
+        content: "Explore Solaris editions, countries, published songs and artists, shows, stories and archive history.",
       },
     ],
   }),
@@ -51,6 +53,13 @@ const PRIMARY_DESTINATIONS: Array<{
     description: "Open delegation histories, entries, records and country pages.",
     eyebrow: "Delegations",
     icon: Flag,
+  },
+  {
+    to: "/music",
+    title: "Songs & artists",
+    description: "Discover published artists, songs and their verified contest appearances.",
+    eyebrow: "Music catalogue",
+    icon: Music2,
   },
   {
     to: "/editions",
@@ -148,7 +157,9 @@ function ExploreWebEditionFeature() {
   const featured = active ?? latest;
   const detailAllowed = featured ? allowsReleased(`/editions/${featured.slug}`) : false;
 
+  const archiveHighlights = selectExploreWebArchiveHighlights(published, featured?.id ?? null, allowsReleased);
   return (
+    <>
     <section className="explore-web-editorial__feature" aria-labelledby="explore-web-contest-title">
       <div>
         <p className="explore-web-editorial__feature-kicker">
@@ -187,6 +198,34 @@ function ExploreWebEditionFeature() {
         </Link>
       )}
     </section>
+    {archiveHighlights.length > 0 ? (
+      <section className="explore-web-editorial__archive-highlights" aria-labelledby="explore-web-archive-highlights-title">
+        <div className="explore-web-editorial__section-heading">
+          <p className="explore-web-editorial__eyebrow">From the archive</p>
+          <h2 id="explore-web-archive-highlights-title">Previous editions</h2>
+        </div>
+        <div className="explore-web-editorial__archive-grid">
+          {archiveHighlights.map((edition) => (
+            <Link
+              key={edition.id}
+              to="/editions/$slug"
+              params={{ slug: edition.slug }}
+              className="explore-web-editorial__archive-item"
+            >
+              <span className="explore-web-editorial__archive-number">
+                {edition.edition_number != null ? `SSC ${edition.edition_number}` : "Published edition"}
+              </span>
+              <strong>{edition.name}</strong>
+              <span className="explore-web-editorial__archive-context">
+                {edition.host_city ? `Host city: ${edition.host_city}` : "Explore published contest history"}
+              </span>
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </Link>
+          ))}
+        </div>
+      </section>
+    ) : null}
+    </>
   );
 }
 
@@ -205,7 +244,7 @@ function ExploreWebEditorial() {
       <header className="explore-web-editorial__masthead">
         <p className="explore-web-editorial__eyebrow">Solaris Studio / Explore</p>
         <h1>Explore Solaris</h1>
-        <p className="explore-web-editorial__intro">Discover countries, editions, shows and stories from across the contest.</p>
+        <p className="explore-web-editorial__intro">Discover countries, editions, music, shows and stories from across the contest.</p>
         <div className="explore-web-editorial__search" role="search">
           <Search className="size-5 shrink-0" aria-hidden="true" />
           <span className="explore-web-editorial__search-copy">

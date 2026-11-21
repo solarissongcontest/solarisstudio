@@ -32,6 +32,7 @@ describe("Explore Archive's three-experience historical layout", () => {
     expect(archive).not.toContain("useAllJuryVotes(");
     expect(archive).not.toContain("useAllResults(");
     expect(archive).toContain('to: "/wiki", group: "reference-results"');
-    expect(archive).not.toContain('title: "Songs & artists"');
+    expect(archive).toContain('title: "Songs & artists"');
+    expect(archive).toContain('to: "/music", group: "countries-stories"');
   });
 });

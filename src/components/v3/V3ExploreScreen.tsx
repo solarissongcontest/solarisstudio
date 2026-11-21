@@ -35,7 +35,7 @@ export type V3ExploreScreenProps = {
 
 const COLLECTION_DESCRIPTIONS: Record<V3ExploreCollection["key"], string> = {
   countries: "Delegations, current entries and participation histories",
-  "songs-and-artists": "Published song and artist labels in their Entry and Edition context",
+  "songs-and-artists": "Publication-safe music discovery with durable Song and Artist identities",
   shows: "Shows, running orders and public show context",
   stories: "Editorial stories and important Solaris moments",
 };
@@ -187,9 +187,8 @@ function ArchiveEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
  * cannot become a second data, Search or Results authority.
  */
 export function V3ExploreScreen({ projection, onOpenSearch, showWorld = false }: V3ExploreScreenProps) {
-  // P9 has no dedicated published artist/song identity route yet. Do not send
-  // a Songs & Artists discovery tile to Edition Overview as a fake catalogue.
-  // When a real destination is wired, this collection appears automatically.
+  // P9 owns first-class music identity. Only show the discovery tile for a
+  // real catalogue route, never for an Edition overview masquerading as music.
   const discoverableCollections = projection.discover.filter(
     (collection) => collection.key !== "songs-and-artists" || !/^\/editions(?:\/|$)/.test(collection.href),
   );
@@ -234,7 +233,7 @@ export function V3ExploreScreen({ projection, onOpenSearch, showWorld = false }:
               title={collection.label}
               description={COLLECTION_DESCRIPTIONS[collection.key]}
               icon={DISCOVERY_ICONS[collection.key]}
-              meta={itemCountLabel(collection.publicItemCount)}
+              meta={collection.key === "songs-and-artists" ? "Published catalogue" : itemCountLabel(collection.publicItemCount)}
               href={collection.href}
             />
           ))}
