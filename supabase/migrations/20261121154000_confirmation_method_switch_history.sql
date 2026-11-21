@@ -236,4 +236,12 @@ begin
 end
 $organizer_read$;
 
+-- S13 registration is written transactionally with the reviewed repair.
+-- This does not fabricate hosted migration-history rows or grant API writers.
+select public.v3_register_migration_contract(
+  'v3.confirmation.method-switch-history', 1, 'forward_fix_only', false, null,
+  'Preserve inactive Internal/NF history, invalidate reactivated approvals and restrict duplicate matches to active selections'
+);
+
+notify pgrst, 'reload schema';
 commit;
