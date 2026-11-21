@@ -32,8 +32,8 @@ describe("P0 limited release restricts public navigation, including installed ta
     expect(worker).toContain("!limitedPublicLaunchAllows(url.pathname)");
     expect(v3Shell).toContain("usePublicLaunchAvailability()");
     expect(v3Shell).toContain("allowsReleased(destination.to)");
-    expect(previewProvider).toContain("organizer.isSuccess && organizer.data === true");
-    expect(previewProvider).not.toContain("!organizer.isFetching && organizer.data === true");
+    expect(previewProvider).toContain("organizer.isSuccess &&");
+    expect(previewProvider).toContain("!organizer.isFetching && !organizer.isError && organizer.data === true");
   });
 
   it("denies Explore, Results and Me on the actual limited launch, and maintains emergency denials", () => {
