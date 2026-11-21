@@ -32,6 +32,9 @@ describe("Confirmation / Entry method transitions and post-review recovery", () 
     expect(route).toContain("Official Entry synchronization is pending");
     expect(route).toContain("studio2_apply_confirmation_entry_review");
     expect(route).toContain("studio2_apply_confirmation_winner_change");
+    expect(route).toContain("const winnerReceipt = normalizeSystemReceipt(winnerOperationResult)");
+    expect(route).toContain('winnerReceipt.status !== "succeeded"');
+    expect(route).toContain("Reconcile before retrying.");
   });
 
   it("classifies authoritative accepted selections separately from stale projections", () => {
