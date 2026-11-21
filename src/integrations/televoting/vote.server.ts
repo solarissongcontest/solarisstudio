@@ -116,6 +116,11 @@ export async function submitMergedTelevotingVoteServer(data: TelevoteReconciliat
     message: "Too many vote attempts from this connection. Please wait a moment.",
   });
 
+  // Revalidate at the final write boundary: a withdrawal can happen after
+  // preflight, and a cached browser ballot is not authoritative.
+  const { assertLinkedTelevoteRosterCurrent } = await import("@/integrations/televoting/participation-guard.server");
+  await assertLinkedTelevoteRosterCurrent(data.roundId);
+
   return submitTelevoteWithReconciliation(
     async () => {
       const { data: result, error } = await televotingPublicServer.rpc(
