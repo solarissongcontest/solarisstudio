@@ -14,6 +14,7 @@ import {
   parseEditionDirectoryUrlSearch,
 } from "@/lib/v3-directory-url-search";
 import "@/styles/v3-directory-family.css";
+import "@/styles/v3-editions-editorial.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   AppEmptyState,
@@ -235,6 +236,15 @@ function EditionsPage() {
         (b.edition.edition_number ?? Number.POSITIVE_INFINITY))
     : visiblePast;
   const archiveQueries = [editionsQuery, showsQuery, countriesQuery];
+  const winnerRecovery = winnerReadState === "error" &&
+    visible.some((card) => card.hasPublishedFinalResults) ? (
+      <div className="v3-editions-winner-recovery" role="status">
+        <p>Published winner details could not be loaded.</p>
+        <button type="button" onClick={() => void resultsQuery.refetch()}>
+          Retry winner details
+        </button>
+      </div>
+    ) : null;
 
   // Never flash website navigation before the installed runtime is resolved.
   if (!platformResolved) {
@@ -294,6 +304,7 @@ function EditionsPage() {
                 {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
                   <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
                 ) : null}
+            {winnerRecovery}
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
@@ -311,13 +322,13 @@ function EditionsPage() {
               <header className="v3-directory-mobile-header" data-directory-mobile-header="">
                 <p className="v3-directory-eyebrow">CONTEST ARCHIVE</p>
                 <h1>Editions</h1>
-                <p>Explore every published SSC edition, from the latest contest back through history.</p>
+                <p>Current contest and past editions.</p>
               </header>
             ) : (
               <PageHeader
                 eyebrow="Contest archive"
                 title="Editions"
-                description="Every published Solaris chapter, from the latest contest back through the archive."
+                description="Current contest and past editions."
               />
             )}
             <div className="v3-directory-workspace">
@@ -335,6 +346,7 @@ function EditionsPage() {
                 {visible.length > 0 && (search.trim() || scope !== "all" || order !== "newest") ? (
                   <button type="button" className="v3-directory-clear-filters" onClick={reset}>Clear filters</button>
                 ) : null}
+                {winnerRecovery}
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
@@ -344,9 +356,13 @@ function EditionsPage() {
                         {orderedPast.map((card) => <EditionMobileRow key={card.edition.id} card={card} />)}
                       </div>
                     ) : (
-                      <div className="v3-directory-desktop-grid">
-                        {orderedPast.map((card) => <EditionDesktopCard key={card.edition.id} card={card} />)}
-                      </div>
+                      <ol className="v3-directory-desktop-grid v3-editions-timeline" aria-label="Published edition history">
+                        {orderedPast.map((card) => (
+                          <li key={card.edition.id} className="v3-editions-timeline-item">
+                            <EditionDesktopCard card={card} />
+                          </li>
+                        ))}
+                      </ol>
                     )}
                   </section>
                 ) : null}
@@ -494,10 +510,16 @@ function EditionDirectoryRail({
 
 function EditionMobileRow({ card }: { card: EditionCard }) {
   return (
-    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-mobile-row">
+    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-mobile-row v3-editions-timeline-mobile-row">
+      <span className="v3-editions-timeline-mobile-number" aria-hidden="true">{card.edition.edition_number ?? "·"}</span>
       <span className="min-w-0 flex-1">
         <strong>{editionLabel(card.edition)}</strong>
-        <span>{card.editionShows.length} public show{card.editionShows.length === 1 ? "" : "s"} · <HostLine hosts={card.hosts} /></span>
+        <span>
+          {card.edition.year != null ? `${card.edition.year} · ` : ""}
+          {card.editionShows.length} public show{card.editionShows.length === 1 ? "" : "s"}
+        </span>
+        <span><HostLine hosts={card.hosts} /></span>
+        <span className="v3-editions-mobile-winner">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
       </span>
       <ChevronRight size={19} aria-hidden="true" />
     </Link>
@@ -506,15 +528,24 @@ function EditionMobileRow({ card }: { card: EditionCard }) {
 
 function EditionDesktopCard({ card }: { card: EditionCard }) {
   return (
-    <Link to="/editions/$slug" params={{ slug: card.edition.slug }} className="v3-directory-desktop-card">
-      <span className="v3-directory-eyebrow">SSC {card.edition.edition_number ?? "archive"}</span>
-      <span className="v3-directory-card-top">
-        <strong>{editionLabel(card.edition)}</strong>
-        <ChevronRight size={19} aria-hidden="true" />
+    <Link
+      to="/editions/$slug"
+      params={{ slug: card.edition.slug }}
+      className="v3-directory-desktop-card v3-editions-timeline-link"
+    >
+      <span className="v3-editions-timeline-date">
+        <span className="v3-directory-eyebrow">SSC {card.edition.edition_number ?? "archive"}</span>
+        {card.edition.year != null ? <span>{card.edition.year}</span> : null}
       </span>
-      <span className="v3-directory-card-description">{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
-      <span className="v3-directory-card-description">Host: <HostLine hosts={card.hosts} /></span>
-      <span className="v3-directory-card-description">Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
+      <span className="v3-editions-timeline-heading">
+        <strong>{editionLabel(card.edition)}</strong>
+        <span>{card.editionShows.length} published show{card.editionShows.length === 1 ? "" : "s"}</span>
+      </span>
+      <span className="v3-editions-timeline-details">
+        <span>Host: <HostLine hosts={card.hosts} /></span>
+        <span>Winner: <WinnerLine winner={card.winner} points={card.winnerResult?.total_points} readState={card.winnerReadState} hasPublishedFinalResults={card.hasPublishedFinalResults} /></span>
+      </span>
+      <ChevronRight className="v3-editions-timeline-chevron" size={19} aria-hidden="true" />
     </Link>
   );
 }
@@ -568,18 +599,19 @@ function WinnerLine({ winner, points, readState = "ready", hasPublishedFinalResu
   readState?: EditionCard["winnerReadState"];
   hasPublishedFinalResults?: boolean;
 }) {
+  if (!hasPublishedFinalResults) return <span className="text-muted-foreground">Result not public yet</span>;
   if (readState === "loading") return <span className="text-muted-foreground">Checking published winner…</span>;
   if (readState === "error") return <span className="text-muted-foreground">Winner details temporarily unavailable</span>;
   if (!winner) return <span className="text-muted-foreground">{hasPublishedFinalResults ? "Winner information unavailable" : "Result not public yet"}</span>;
   return (
-    <span className="inline-flex min-w-0 items-center gap-1.5">
+    <span className="v3-editions-winner-identity inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5">
       <FlagChip
         code={winner.short_code}
         color={winner.accent_color}
         image={winner.flag_image}
         size="sm"
       />
-      <span className="truncate">{winner.name}</span>
+      <span className="v3-editions-winner-name min-w-0 break-words">{winner.name}</span>
       {points != null ? <span className="numeric text-muted-foreground">· {points} pts</span> : null}
     </span>
   );
