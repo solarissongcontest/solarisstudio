@@ -72,10 +72,12 @@ function latestVersionNumber(versions: StoredConfirmationVersion[]) {
 
 export function ConfirmationVersionHistory({
   submissionId,
+  editionId,
   currentSnapshot,
   scopeLabel,
 }: {
   submissionId: string;
+  editionId: string;
   currentSnapshot: SubmissionSnapshot;
   scopeLabel: string;
 }) {
@@ -124,7 +126,7 @@ export function ConfirmationVersionHistory({
       try {
         // Read the authoritative current state server-side, not from the
         // restored historical snapshot or an untrusted browser response.
-        const sync = await syncToSolaris({ data: { submissionId } });
+        const sync = await syncToSolaris({ data: { submissionId, editionId } });
         if (!sync.ok) syncWarning = sync.message ?? 'Canonical Solaris sync needs attention.';
       } catch (syncError) {
         syncWarning = syncError instanceof Error
