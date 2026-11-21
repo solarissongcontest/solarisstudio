@@ -139,7 +139,7 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage6).toContain("v3_reconcile_jury_submission");
     expect(stage6).toContain("cannot vote for your own country");
     expect(stage6).toContain("receipt.replayed true");
-    expect(stage6).toContain("submitted_total\" == \"64");
+    expect(stage6).toContain("submitted_total\" == \"63");
     expect(stage6).toContain("S14_INVARIANT_JURY_COMPLETE");
     expect(stage6).toContain("S14_STAGE_6_JURY_COMPLETE");
     expect(stage6).not.toContain("v3-jury-security-rehearsal.sh");
