@@ -1,0 +1,3915 @@
+# Solaris Studio App V3
+## Complete Product, UX, Visual Design, Interaction, Architecture, Migration & Release Specification
+
+This is the version I would now treat as the **canonical V3 blueprint**.
+
+It incorporates the whole discussion, including the later critical review. So this is **not** merely the prettiest version of the earlier concept. It deliberately fixes the weak spots we identified: over-dynamic Home layouts, overly linear contest-state thinking, ambiguous MySolaris/Me ownership, possible overuse of glass and motion, optional-versus-required task confusion, multi-device conflicts, spoiler handling, organizer context safety, stale-state recovery, notification fatigue, production egress risk, and the danger of V3 becoming an enormous rewrite.
+
+The intended result is very specific:
+
+> **Solaris Studio V3 should feel like an entirely new premium app, while retaining the trustworthy backend, data, workflows and integrity contracts that already work.**
+
+The old and new apps should look like different generations.
+
+But a returning user should still think:
+
+> “Everything I need is still here. It just suddenly makes much more sense.”
+
+And, preferably a few seconds earlier:
+
+> “Holy shit, this looks expensive.”
+
+A demanding target, but apparently we have chosen software instead of a peaceful hobby.
+
+---
+
+# Part I
+# Product definition
+
+## 1. What Solaris Studio V3 is
+
+Solaris Studio V3 is the **digital operating system of the Solaris Song Contest**.
+
+It is not primarily:
+
+- an archive website
+- a results database
+- an admin dashboard
+- a voting site
+- a collection of contest forms
+
+Those remain capabilities.
+
+The product itself understands four things:
+
+### What is happening?
+Canonical contest and workflow state.
+
+### Where is this user in that world?
+Role, delegation, edition membership and participation state.
+
+### What should this user do?
+Actions and responsibilities.
+
+### What deserves this user’s attention?
+Urgency, importance and delivery policy.
+
+The interface is the projection of those answers.
+
+---
+
+# 2. The V3 product promise
+
+The app must reliably answer:
+
+> **What matters to me right now?**
+
+without requiring users to understand Solaris Studio's internal information architecture.
+
+The user should not need to know that “jury submissions” happen to live three routes beneath a show entity.
+
+If Solaris knows the user needs to submit a jury ballot, Solaris should surface:
+
+> **Jury voting · 8/15 complete · closes in 3h**
+
+and take them directly there.
+
+---
+
+# 3. What must remain from the existing Solaris
+
+V3 is **not a backend rewrite**.
+
+Several current concepts are already correct and should be evolved rather than discarded.
+
+The current product already has five stable global areas:
+
+**Home · Explore · Participate · Results · Me**. 
+
+The current Participate implementation already has a meaningful task model with attention-required tasks, upcoming tasks, completed tasks, deadlines, countdowns and explanation text. 
+
+The current Organizer Home already follows a good exception-first pattern through “Do now”, Inbox, Upcoming and edition readiness. 
+
+The current app also already contains notification, personal-attention and participation machinery that V3 can consolidate instead of duplicating.  
+
+Therefore the V3 rule is:
+
+> **Preserve correct domain behaviour. Replace fragmented presentation and duplicated client reasoning.**
+
+---
+
+# Part II
+# Core product principles
+
+## 4. Principle 1: internally sophisticated, externally simple
+
+V3 may contain:
+
+- State projections
+- Journey computation
+- Action generation
+- Attention policies
+- notification scheduling
+- capability resolution
+- conflict detection
+- cache reconciliation
+
+Users should not feel any of that machinery.
+
+They should feel:
+
+> “Solaris understands my situation.”
+
+---
+
+# 5. Principle 2: action before navigation
+
+Bad:
+
+> Home → Participate → Jury → Semi-final → ballot → continue
+
+Preferred:
+
+> **Jury voting closes in 3h → Continue**
+
+Navigation still exists for discovery.
+
+Actions bypass unnecessary navigation.
+
+---
+
+# 6. Principle 3: stable structure, dynamic emphasis
+
+This corrects one weakness in the earlier concept.
+
+Home should react to:
+
+- urgent deadlines
+- show day
+- live broadcasts
+- voting
+- published results
+
+but should **not completely rearrange itself every few hours**.
+
+The user must maintain spatial memory.
+
+Canonical Home order remains:
+
+**Context → Now → Current Contest → Coming Up → Latest**
+
+What changes is **importance and scale**, not the mental model.
+
+---
+
+# 7. Principle 4: required, optional and urgent are different things
+
+These must never be conflated.
+
+A jury ballot can be:
+
+**required but not urgent**
+
+A public televote can be:
+
+**urgent but optional**
+
+An integrity problem can be:
+
+**important without a deadline**
+
+Therefore V3 stores these concepts separately.
+
+---
+
+# 8. Principle 5: one canonical truth
+
+There must not be separate authoritative truth for:
+
+- Journey
+- Home
+- Participate
+- notifications
+- Organizer
+
+Canonical domain state is authoritative.
+
+Everything else is derived.
+
+```text
+Canonical domain state
+        ↓
+Experience projections
+        ↓
+Home / Journey / Actions / Attention / Organizer / Notifications
+```
+
+---
+
+# 9. Principle 6: beauty is functional
+
+Aesthetic ambition is not optional.
+
+V3 should be substantially prettier than current Solaris.
+
+But visual intensity must communicate hierarchy.
+
+Quiet screens remain restrained.
+
+High-impact moments become expressive.
+
+If every screen glows, blurs, pulses and expands, the app stops looking premium and starts looking radioactive.
+
+---
+
+# Part III
+# Global information architecture
+
+## 10. Primary navigation
+
+The participant/public app keeps:
+
+### Home
+**What matters now**
+
+### Explore
+**Discover Solaris**
+
+### Participate
+**Your responsibilities and participation**
+
+### Results
+**What happened**
+
+### Me
+**Your Solaris identity**
+
+This distinction is final.
+
+---
+
+# 11. Explore versus Results
+
+This is intentionally strict.
+
+### Explore contains entities and stories
+
+- editions
+- countries
+- artists
+- songs
+- shows
+- stories
+- archive reference
+- Wiki
+- encyclopedia
+
+### Results contains outcomes and interpretation
+
+- rankings
+- scorecharts
+- jury/televote breakdown
+- records
+- voting relationships
+- Voting DNA
+- analysis
+- result tools
+- simulations
+
+If a new feature seems to belong equally to both, its concept needs work.
+
+---
+
+# 12. MySolaris
+
+**MySolaris is no longer a primary user-facing mental model in V3.**
+
+Its current responsibilities are divided:
+
+### Participate
+tasks, submissions, participation workflows
+
+### Me
+identity, history, receipts, settings, account
+
+The existing route can remain during migration.
+
+The user should not have to choose between:
+
+> Participate  
+> MySolaris  
+> Me
+
+for personal contest activity.
+
+That is three doors into one hallway.
+
+---
+
+# Part IV
+# User and role model
+
+## 13. Canonical identity model
+
+Avoid hardcoding behaviour around display roles such as “HOD”.
+
+Use:
+
+```text
+User
+  ↓
+Membership
+  ↓
+Delegation
+  ↓
+Edition
+  ↓
+Capabilities
+```
+
+Example:
+
+```text
+Arthur
+→ Oland
+→ SSC 22
+→ confirmation.manage
+→ entry.submit
+→ jury.vote
+```
+
+---
+
+# 14. Primary personas
+
+| Persona | Experience |
+|---|---|
+| Anonymous visitor | public browsing, live, public results |
+| Fan | personalization, following, public participation |
+| Country member | delegation-context features |
+| HOD/delegation manager | official participation workflows |
+| Organizer | operational contest management |
+| Superadmin | platform-level administration |
+
+Roles should be descriptive.
+
+**Capabilities determine access.**
+
+---
+
+# 15. Capability examples
+
+Participant:
+
+- confirmation.view
+- confirmation.manage
+- entry.view
+- entry.edit
+- entry.submit
+- media.upload
+- jury.vote
+- receipt.view
+
+Organizer:
+
+- confirmation.review
+- confirmation.round.manage
+- entry.review
+- jury.monitor
+- jury.manage
+- televote.manage
+- result.validate
+- result.publish
+- announcement.publish
+
+Superadmin:
+
+- role.manage
+- system.override
+- platform.manage
+
+---
+
+# Part V
+# Canonical domain state
+
+## 16. Do not build one giant linear edition state machine
+
+Earlier drafts used something resembling:
+
+`CONFIRMATION → ENTRY → JURY → SHOW → RESULTS`
+
+That is too simplistic.
+
+Real workflows overlap.
+
+Instead use orthogonal state domains.
+
+---
+
+# 17. Edition domain
+
+```text
+planning
+active
+completed
+archived
+cancelled
+```
+
+---
+
+# 18. Confirmation domain
+
+```text
+scheduled
+open
+closed
+completed
+cancelled
+```
+
+---
+
+# 19. Entry domain
+
+```text
+unavailable
+draft
+submitted
+under_review
+changes_required
+verified
+withdrawn
+```
+
+---
+
+# 20. Show domain
+
+```text
+scheduled
+preparing
+delayed
+live
+paused
+ended
+cancelled
+```
+
+---
+
+# 21. Jury domain
+
+```text
+locked
+upcoming
+open
+closed
+reviewing
+validated
+finalized
+```
+
+---
+
+# 22. Televote domain
+
+```text
+locked
+upcoming
+open
+extended
+closed
+validating
+validated
+```
+
+---
+
+# 23. Results domain
+
+```text
+hidden
+prepared
+reviewing
+approved
+published
+corrected
+```
+
+---
+
+# 24. Publication domain
+
+```text
+draft
+scheduled
+public
+withdrawn
+```
+
+---
+
+# 25. Experience state
+
+The client receives a derived experience projection.
+
+Example:
+
+```text
+show = live
+televote = open
+results = hidden
+```
+
+becomes:
+
+> **Live Voting Experience**
+
+The UI does not need to independently infer it.
+
+---
+
+# Part VI
+# Home
+
+## 26. Home’s permanent skeleton
+
+Home always follows:
+
+1. Context
+2. Now
+3. Current Contest
+4. Coming Up
+5. Latest
+
+Optional modules may appear beneath these.
+
+---
+
+# 27. Home content budget
+
+To prevent V3 slowly becoming Dashboard 2: Dashboard Harder:
+
+| Content | Maximum |
+|---|---:|
+| Primary action | 1 |
+| Secondary actions | 2 |
+| Current contest hero | 1 |
+| Upcoming items | 3 |
+| Latest updates | 3 |
+| Secondary personalization block | 1 |
+
+Excess tasks:
+
+> **3 more need attention →**
+
+leading to Participate.
+
+---
+
+# 28. Home: calm state
+
+Example:
+
+> **Good evening, Arthur**
+>
+> You're all caught up ✓
+
+Then:
+
+**SSC 22**  
+Pre-show
+
+**Coming up**  
+Semi-final 1 · tomorrow
+
+**Latest**  
+Running order released
+
+Greeting is only used where it adds value.
+
+---
+
+# 29. Home: action-required state
+
+Example:
+
+> **1 thing needs your attention**
+>
+> Jury voting  
+> 8 / 15 complete  
+> Closes tomorrow 20:00
+>
+> **Continue**
+
+Current contest remains underneath.
+
+---
+
+# 30. Home: urgent state
+
+When deadline crosses an urgency threshold:
+
+> **Jury voting**
+>
+> **47 minutes remaining**
+>
+> 11 / 15 ranked
+>
+> Continue
+
+The Now section expands.
+
+The rest of Home remains structurally familiar.
+
+---
+
+# 31. Home: show day
+
+> **TONIGHT**
+>
+> Solaris Song Contest 22  
+> Semi-final 1
+>
+> Starts in 2h 14m
+
+Actions:
+
+- Open show
+- View running order
+
+---
+
+# 32. Home: Live
+
+> 🔴 **LIVE**
+>
+> Semi-final 1
+>
+> **12 / 18**
+>
+> Oland  
+> Artist · Song
+>
+> Next: Vendia
+
+Home becomes live-aware.
+
+It does **not force navigation into Live Mode**.
+
+---
+
+# 33. Home: voting open
+
+> **Voting is open**
+>
+> Closes in 14:22
+>
+> Vote now
+
+If already submitted:
+
+> ✓ Vote received
+
+---
+
+# 34. Home: results
+
+Without spoiler protection:
+
+> **SSC 22 Results**
+>
+> 🥇 Oland  
+> 312 points
+
+With spoiler protection:
+
+> **SSC 22 results are available**
+>
+> Reveal results
+
+---
+
+# 35. Home: post-edition
+
+> **SSC 22 complete**
+>
+> Winner · Oland
+>
+> Explore the edition
+
+Then transition attention toward the next edition when appropriate.
+
+---
+
+# Part VII
+# Explore
+
+## 36. Explore root
+
+Order:
+
+### Search
+
+Universal search field.
+
+### Current edition
+
+Large editorial hero.
+
+### Discover
+
+- Countries
+- Songs & artists
+- Shows
+- Stories
+
+### Archive
+
+- Editions
+- Wiki
+- Encyclopedia
+
+### More
+
+- archive games
+- advanced discovery
+
+---
+
+# 37. Explore visual character
+
+Explore is more editorial than Home.
+
+Home is personal and operational.
+
+Explore may use:
+
+- stronger artwork
+- larger typography
+- curated content rows
+- horizontal collections where appropriate
+
+But it should not become an infinite streaming feed.
+
+---
+
+# 38. Edition page
+
+Edition page is a **living event hub**.
+
+Top:
+
+- artwork
+- edition name
+- host
+- status
+- next event
+
+Sections:
+
+- Overview
+- Participants
+- Songs
+- Schedule
+- Stories
+- Results
+
+During live state:
+
+- prominent live status
+- open Live Mode
+
+After results:
+
+- winner/result treatment
+
+---
+
+# 39. Edition artwork behaviour
+
+Artwork metadata can store:
+
+```text
+focal_x
+focal_y
+safe_text_region
+dominant_color
+```
+
+Responsive crops use the focal point.
+
+Typography never relies on the artwork conveniently being dark.
+
+A controlled scrim/gradient guarantees contrast.
+
+---
+
+# 40. Country screen
+
+Header:
+
+- canonical 3:2 flag
+- country name
+- follow state
+- current edition status
+
+Sections:
+
+- Current
+- Entries
+- Results
+- History
+- Voting profile
+
+Country identity can subtly influence accent treatment.
+
+---
+
+# 41. Search
+
+Search must support:
+
+- editions
+- countries
+- songs
+- artists
+- shows
+- stories
+- public rules
+- tools
+
+Search must be **permission-aware**.
+
+Unauthorized users must never receive snippets for:
+
+- unpublished results
+- private entries
+- organizer pages
+- integrity cases
+- private country data
+
+---
+
+# Part VIII
+# Participate
+
+## 42. Participate’s job
+
+Participate answers:
+
+> **What am I responsible for, and what can I participate in?**
+
+It has two layers:
+
+### Responsibilities / Journey
+
+### Actions
+
+---
+
+# 43. Required versus optional
+
+The UI explicitly separates:
+
+## Responsibilities
+
+Official obligations.
+
+Examples:
+
+- confirmation
+- entry
+- media
+- jury
+
+## Optional participation
+
+Examples:
+
+- public televote
+- Fantasy
+- predictions
+
+Optional participation must never look equivalent to an official required delegation task.
+
+---
+
+# 44. Journey
+
+Example:
+
+> **SSC 22 · Your responsibilities**
+
+**Confirmation**  
+✓ Complete
+
+**Entry**  
+✓ Verified
+
+**Media**  
+✓ Complete
+
+**Jury**  
+● In progress · 8/15
+
+The journey ends when the user's obligations end.
+
+**Results are not a journey step.**
+
+Results are an outcome.
+
+---
+
+# 45. Action Center
+
+Below Journey:
+
+### Needs attention
+
+Prominent active tasks.
+
+### Next
+
+Upcoming required workflow.
+
+### Optional now
+
+Public/optional participation.
+
+### Completed
+
+Collapsed history.
+
+The existing Task Center concept is the base for this evolution rather than something to discard. 
+
+---
+
+# Part IX
+# Confirmation experience
+
+## 46. Confirmation states
+
+- unavailable
+- upcoming
+- open / not started
+- draft
+- submitted
+- completed
+- closed
+- correction required
+- existing canonical confirmation
+
+---
+
+# 47. Confirmation flow
+
+### Overview
+
+Edition, status, deadline, requirements.
+
+### Decision
+
+Participating / not participating where applicable.
+
+### Details
+
+Only relevant fields.
+
+### Review
+
+Plain-language summary.
+
+### Submit
+
+Server-authoritative operation.
+
+### Receipt
+
+Persistent proof.
+
+---
+
+# 48. Duplicate confirmation protection
+
+If Solaris already has a valid canonical confirmation:
+
+do not show a new active task.
+Show:
+
+> ✓ **Participation confirmed**
+
+If round closed:
+
+do not leave a dead todo item.
+
+This is one of the defect classes V3 should eliminate structurally.
+
+---
+
+# Part X
+# Entry & media
+
+## 49. Entry state
+
+Display one canonical state:
+
+- Draft
+- Submitted
+- Under review
+- Changes required
+- Verified
+
+---
+
+# 50. Entry editor
+
+Sections:
+
+- Song
+- Artist
+- Credits
+- Metadata
+- Media
+
+Autosave status:
+
+> Saved
+
+or:
+
+> Saved offline
+
+Never fake a final server submission.
+
+---
+
+# 51. Media
+
+Upload pipeline states:
+
+```text
+queued
+uploading
+processing
+validating
+accepted
+failed
+quarantined
+replacement_required
+```
+
+Failed retry cannot create duplicates.
+
+---
+
+# 52. Changes required
+
+Example:
+
+> **1 item needs attention**
+>
+> Artist image does not meet the required dimensions.
+>
+> Replace image
+
+No vague red badge and treasure hunt.
+
+---
+
+# Part XI
+# Jury
+
+## 53. Jury overview
+
+Displays:
+
+- show
+- official role
+- deadline
+- progress
+- relevant rules
+- save status
+
+---
+
+# 54. Ranking
+
+Primary ranking interaction can be drag.
+
+But drag is never the only accessible mechanism.
+
+Alternatives:
+
+- move up
+- move down
+- choose position
+
+---
+
+# 55. Jury draft
+
+Stored with:
+
+```text
+draft_id
+revision
+updated_at
+device_id/session_id
+server_revision
+```
+
+---
+
+# 56. Cross-device conflict
+
+Example:
+
+Phone saves revision 18.
+
+Desktop is editing revision 17.
+
+Desktop attempts save.
+
+Response:
+
+> **This ballot changed on another device.**
+>
+> Newer version: 18
+>
+> Review newest version
+
+No silent last-write-wins.
+
+---
+
+# 57. Jury review
+
+Before submit:
+
+- full ranking
+- all required items complete
+- rule validation
+- own-country restrictions
+- warnings
+
+---
+
+# 58. Submit
+
+States:
+
+`Ready → Submitting → Confirmed`
+
+Success only after server acknowledgement.
+
+---
+
+# 59. Submission uncertainty
+
+If network disappears after request:
+
+> **Checking submission status…**
+
+Client uses the idempotency/operation key to determine whether submission committed.
+
+Never immediately tell the user it failed.
+
+---
+
+# 60. Jury receipt
+
+Contains:
+
+- edition
+- show
+- delegation
+- submitted time
+- receipt ID
+- integrity/verification state where appropriate
+
+Example:
+
+> ✓ **Jury submitted**
+>
+> 8 Oct 2026 · 19:41  
+> JRY-S22-SF1-4921
+
+---
+
+# Part XII
+# Televote
+
+## 61. Televote states
+
+- Locked
+- Upcoming
+- Open
+- Submitted
+- Extended
+- Closed
+- Results published
+
+---
+
+# 62. Televote flow
+
+Open:
+
+> **Voting is open**
+
+Select.
+
+Review.
+
+Submit.
+
+Server confirms.
+
+Receipt.
+
+If window extends:
+
+UI updates canonical closing time.
+
+---
+
+# Part XIII
+# Live Mode
+
+## 63. Live Mode is explicit
+
+When a show starts:
+
+Home becomes strongly live-aware.
+
+A global Live indicator may appear.
+
+User enters full Live Mode intentionally.
+
+---
+
+# 64. Live screen
+
+Header:
+
+> 🔴 LIVE  
+> Semi-final 1
+
+Main:
+
+> **Now performing**
+
+Flag  
+Country  
+Artist  
+Song  
+12 / 18
+
+Next:
+
+Vendia
+
+Sections:
+
+- running order
+- updates
+- voting
+- show details
+
+---
+
+# 65. Non-happy-path live states
+
+Must support:
+
+- show delayed
+- technical pause
+- running order changed
+- skipped performance
+- show interrupted
+- voting delayed
+- voting extended
+- results delayed
+- show cancelled
+
+Live architecture cannot assume broadcast perfection.
+
+A bold assumption, given the existence of technology.
+
+---
+
+# Part XIV
+# Results
+
+## 66. Results root
+
+First priority:
+
+**official result**
+
+not analysis tools.
+
+Example:
+
+> **SSC 22 Final**
+
+🥇 Oland · 312  
+🥈 Vendia · 284  
+🥉 Hanvør · 271
+
+---
+
+# 67. Result modes
+
+Tabs:
+
+- Combined
+- Jury
+- Televote
+
+User delegation:
+
+> **Your result**
+>
+> Oland · 1st · 312 points
+
+---
+
+# 68. Deep analysis
+
+After the official result:
+
+### Explore this result
+
+- Scorechart
+- Jury vs televote
+- Country breakdown
+
+Then:
+
+### More analysis
+
+- Relationships
+- Voting DNA
+- Records
+- Result Lab
+- Replay
+- simulations
+
+---
+
+# 69. Result reveal
+
+The full expressive reveal appears:
+
+- immediately after publication
+- first meaningful view
+
+Sequence:
+
+background transition  
+→ edition accent  
+→ winner  
+→ country  
+→ points  
+→ podium
+
+Duration approximately:
+
+**0.8–1.5 seconds**
+
+Later visits open normally.
+
+---
+
+# Part XV
+# Spoiler protection
+
+## 70. Global preference
+
+User can choose:
+
+### Show results immediately
+
+or:
+
+### Hide results until I reveal them
+
+---
+
+# 71. Spoiler policy affects
+
+- Home
+- Results previews
+- Edition
+- Notifications
+- Push
+- Search snippets
+- Following updates
+
+Example push:
+
+Instead of:
+
+> Oland wins SSC 22!
+
+send:
+
+> **SSC 22 results are available**
+
+when spoiler protection is active.
+
+---
+
+# Part XVI
+# Me
+
+## 72. Me root
+
+Me is identity, not another task center.
+
+Structure:
+
+### Identity
+Profile, delegation, role.
+
+### Current
+Current edition membership.
+
+### History
+Past editions and roles.
+
+### Activity
+Submissions, receipts.
+
+### Following
+Countries/content.
+
+### Preferences
+Notifications, appearance, language, accessibility.
+
+### Account
+Devices, security, privacy.
+
+---
+
+# 73. Example Me screen
+
+> **Arthur**
+>
+> 🇴🇱 Oland  
+> Head of Delegation
+
+### Current
+SSC 22
+
+### History
+SSC 19 · Participant  
+SSC 20 · Jury  
+SSC 21 · Participant  
+SSC 22 · Head of Delegation
+
+### Activity
+Receipts  
+Submission history
+
+---
+
+# Part XVII
+# Organizer Mode
+
+## 74. Organizer is a separate operational mode
+
+Accessible through Me:
+
+> **Switch to Organizer**
+
+Organizer changes:
+
+- navigation
+- density
+- priorities
+- shell treatment
+- information architecture
+
+Not merely “participant app plus admin buttons”.
+
+---
+
+# 75. Organizer navigation
+
+### Overview
+Current operational health.
+
+### Tasks
+Unified action queue.
+
+### Control
+Operational systems.
+
+### Live
+Show operations.
+
+### More
+Configuration, logs and advanced administration.
+
+---
+
+# 76. Organizer context lock
+
+Organizer always clearly displays current:
+
+**Edition**
+
+and, when relevant:
+
+**Show**
+
+Example:
+
+> **SSC 22 · Final**
+
+A context switch is explicit.
+
+Switching edition:
+
+- closes active destructive flows
+- invalidates edition-scoped cache
+- resets show context
+- reloads state
+- updates navigation
+
+---
+
+# 77. Organizer Overview
+
+Example:
+
+> **SSC 22**
+>
+> On track ✓
+
+### Needs attention
+
+🔴 2 confirmations unresolved  
+🟠 Oland media needs review  
+🟠 4 jury ballots outstanding
+
+### Next
+
+Jury closes · 3h 12m
+
+### Readiness
+
+92%
+
+This extends the existing exception-first Organizer model already present in Solaris. 
+
+---
+
+# 78. Organizer Tasks
+
+Unified queue.
+
+Sort order:
+
+1. blocking critical
+2. deadline
+3. impact
+4. operational importance
+
+Filters:
+
+- Participation
+- Entries
+- Jury
+- Televote
+- Integrity
+- Publication
+- System
+
+---
+
+# 79. Organizer Control
+
+### Participation
+Confirmations  
+Entries  
+Media
+
+### Contest
+Delegations  
+Shows  
+Running order
+
+### Voting
+Jury  
+Televote
+
+### Publication
+Results  
+Announcements  
+Edition
+
+Each root row shows status:
+
+> **Jury**  
+> Open · 62 / 66 submitted
+
+not merely:
+
+> Jury →
+
+---
+
+# Part XVIII
+# Organizer risk model
+
+## 80. Risk Tier 1
+
+Low risk, reversible.
+
+Examples:
+
+- edit copy
+- modify draft schedule
+
+Normal save.
+
+---
+
+# 81. Risk Tier 2
+
+Operational.
+
+Examples:
+
+- open confirmation
+- send reminder
+- start jury window
+
+Review sheet.
+
+---
+
+# 82. Risk Tier 3
+
+High consequence.
+
+Examples:
+
+- close voting
+- publish results
+- disqualify entry
+- reopen finalized process
+
+Explicit consequence confirmation.
+
+---
+
+# 83. Risk Tier 4
+
+Critical platform operation.
+
+Examples:
+
+- delete edition
+- override official finalized result
+- platform-wide emergency mode
+
+Require stronger confirmation, possibly reauthentication.
+
+Potential future dual approval.
+
+---
+
+# 84. Safe undo
+
+For safe reversible actions prefer:
+
+> Announcement archived  
+> **Undo**
+
+instead of endless confirmation dialogs.
+
+---
+
+# Part XIX
+# Organizer Live
+
+## 85. Live Control
+
+> 🔴 **LIVE CONTROL**
+>
+> SSC 22 · Semi-final 1
+
+### Now
+12 · Oland
+
+### Next
+13 · Vendia
+
+### Systems
+Show ✓  
+Jury ✓  
+Televote Locked  
+Results Ready
+
+### Next operation
+Open televoting  
+Expected in 16 min
+
+---
+
+# 86. Proactive organizer intelligence
+
+Solaris may surface:
+
+> **Jury completion is behind expected pace**
+>
+> 54 / 66 submitted  
+> 3h remaining
+
+Action:
+
+**Notify remaining delegations**
+
+This should be rules-based first.
+
+No need to summon an AI oracle to tell us that 12 missing ballots three hours before deadline is worth noticing.
+
+---
+
+# Part XX
+# Attention system
+
+## 87. Attention fields
+
+Each attention item should distinguish:
+
+```text
+action_required
+urgency
+impact
+delivery_class
+expires_at
+route
+audience
+dedupe_key
+subject
+context
+```
+
+---
+
+# 88. Delivery classes
+
+### Required
+User must act or know.
+
+### Recommended
+Important but not mandatory.
+
+### Optional
+Informational.
+
+---
+
+# 89. Urgency
+
+Example scale:
+
+- none
+- low
+- medium
+- high
+- immediate
+
+This is independent of required/optional.
+
+---
+
+# 90. Notification delivery
+
+Channels:
+
+- Home
+- Participate
+- badge
+- in-app notifications
+- push
+- organizer inbox
+- possibly email
+
+---
+
+# 91. Notification fatigue policy
+
+Required reminders may escalate.
+
+Informational events usually get one delivery.
+
+Repeated related events aggregate.
+
+Bad:
+
+> Running order changed  
+> Running order changed  
+> Running order changed
+
+Good:
+
+> **Running order updated**
+
+---
+
+# 92. Why this notification?
+
+Each meaningful notification can expose:
+
+> **Why am I seeing this?**
+
+Example:
+
+> Oland's jury ballot has not yet been submitted for SSC 22 Semi-final 1.
+
+---
+
+# Part XXI
+# Deep links
+
+## 93. Deep links resolve contextually
+
+Do not treat routes as timeless.
+
+A push to an old jury action resolves current server state.
+
+If closed:
+
+> **Jury voting has closed**
+>
+> Your ballot was submitted ✓
+
+or:
+
+> No ballot was submitted.
+
+No broken stale form.
+
+---
+
+# Part XXII
+# Visual art direction
+
+## 94. Final direction
+
+The recommended V3 visual language combines:
+
+### Aurora Glass
+materials and atmosphere
+
+### Editorial Broadcast
+bold typography and event identity
+
+### Solaris Noir
+restraint and premium darkness
+
+Working internal name:
+
+**Aurora Broadcast Noir**
+
+No need to put that on merchandise unless we decide Solaris Studio also needs fragrance.
+
+---
+
+# 95. Visual objectives
+
+V3 should feel:
+
+- premium
+- cinematic
+- editorial
+- dark
+- precise
+- tactile
+- modern
+- calm
+- event-aware
+
+Not:
+
+- gamer UI
+- fintech clone
+- glass-everywhere demo
+- generic Tailwind dashboard
+- sci-fi control panel
+
+---
+
+# Part XXIII
+# Presentation intensity
+
+## 96. Utility
+
+Screens:
+
+- Settings
+- Forms
+- Receipts
+
+Visual intensity:
+
+low.
+
+---
+
+# 97. Standard
+
+Screens:
+
+- Home calm
+- Explore
+- Me
+
+Intensity:
+
+medium.
+
+---
+
+# 98. Editorial
+
+Screens:
+
+- Edition
+- Country
+- Results
+
+Intensity:
+
+high but controlled.
+
+---
+
+# 99. Event
+
+Screens:
+
+- Live
+- Result reveal
+- winner
+- major completion
+
+Intensity:
+
+highest.
+
+Spectacular design is reserved for moments worth remembering.
+
+---
+
+# Part XXIV
+# Design tokens
+
+## 100. Color semantics
+
+Never hardcode UI around:
+
+`whiteText`
+`blackCard`
+
+Use semantic tokens.
+
+### Background
+`bg.base`  
+`bg.subtle`  
+`bg.elevated`  
+`bg.overlay`
+
+### Text
+`text.primary`  
+`text.secondary`  
+`text.tertiary`  
+`text.disabled`
+
+### Accent
+`accent.primary`  `accent.secondary`
+
+### Status
+`status.success`  
+`status.warning`  
+`status.danger`  
+`status.info`  
+`status.live`  
+`status.locked`
+
+### Edition
+`edition.accent`  
+`edition.accentSubtle`  
+`edition.ambient`
+
+---
+
+# 101. Dark palette
+
+Base should be deep navy-black rather than pure black.
+
+The exact palette should be finalized visually in Figma and on-device.
+
+Relative depth:
+
+Base  
+→ subtle  
+→ surface  
+→ raised  
+→ overlay
+
+Differences remain small.
+
+---
+
+# 102. Typography
+
+Suggested scale:
+
+| Token | Mobile |
+|---|---:|
+| Display XL | 40–48 |
+| Display L | 32–38 |
+| Title XL | 28–32 |
+| Title L | 24–28 |
+| Title M | 20–22 |
+| Body L | 16–17 |
+| Body | 14–16 |
+| Small | 12–13 |
+| Meta | 10–11 |
+
+Use tabular numerals for:
+
+- countdown
+- points
+- rankings
+- progress numbers
+
+---
+
+# 103. Weight
+
+Regular 400  
+Medium 500  
+Semibold 600  
+Bold 700  
+Display 700–800
+
+Avoid making every heading `900`.
+
+---
+
+# 104. Spacing scale
+
+```text
+2
+4
+8
+12
+16
+20
+24
+32
+40
+48
+64
+```
+
+---
+
+# 105. Screen gutters
+
+Small phone:
+
+16
+
+Standard:
+
+18–20
+
+Large phone:
+
+20–24
+
+Tablet:
+
+24–32
+
+Desktop:
+
+32–48
+
+---
+
+# 106. Radius
+
+```text
+8   small controls
+12  pills/buttons
+16  rows
+20  standard card
+24  large card
+28  hero
+28–32 sheet
+```
+
+Nested surfaces use smaller radius than the parent.
+
+---
+
+# 107. Borders
+
+Low-alpha borders do more work than giant shadows.
+
+Normal:
+
+subtle.
+
+Focus/interaction:
+
+temporarily stronger.
+
+---
+
+# 108. Elevation
+
+0 background  
+1 grouped content  
+2 cards  
+3 floating controls  
+4 sheets  
+5 dialogs/critical overlays
+
+---
+
+# 109. Blur
+
+Navigation:
+
+24–32 px class
+
+Sheets:
+
+24–40
+
+Overlays:
+
+16–24
+
+Ambient artwork may use much stronger blur because it is decorative.
+
+All values require GPU/performance validation.
+
+---
+
+# Part XXV
+# Visual effects budget
+
+## 110. Normal viewport rule
+
+Usually allow:
+
+- one dominant ambient/artwork treatment
+- one glass layer
+- one primary accent
+
+Do not stack:
+
+gradient + blur + glow + animated border + coloured shadow + glass
+
+onto one card.
+
+Visual discipline is what makes premium design look expensive rather than merely busy.
+
+---
+
+# Part XXVI
+# Material system
+
+## 111. Level 1: flat content
+
+Background and normal content.
+
+No glass.
+
+---
+
+# 112. Level 2: raised surface
+
+Cards and grouped content.
+
+Uses:
+
+- surface contrast
+- subtle border
+- minimal shadow
+
+---
+
+# 113. Level 3: floating material
+
+Navigation, sheets and overlays.
+
+Uses:
+
+- translucency
+- backdrop blur
+- dark tint
+- subtle highlight
+- controlled shadow
+
+Liquid Glass belongs here.
+
+---
+
+# Part XXVII
+# Component system
+
+## 114. ActionCard
+
+Variants:
+
+- required
+- urgent
+- in progress
+- upcoming
+- problem
+- completed
+- informational
+
+Content:
+
+- icon
+- title
+- description
+- deadline
+- progress
+- status
+- CTA
+- why
+
+States:
+
+- normal
+- pressed
+- loading
+- stale
+- offline
+- disabled
+
+---
+
+# 115. JourneyStep
+
+Variants:
+
+- complete
+- active
+- waiting
+- locked
+- problem
+- skipped
+
+Supports:
+
+- deadline
+- progress
+- receipt
+- CTA
+
+---
+
+# 116. EditionHero
+
+Variants:
+
+- standard
+- current
+- show day
+- live
+- results
+- archived
+
+Supports scroll collapse.
+
+---
+
+# 117. CountryRow
+
+- flag
+- country
+- context
+- status/rank
+- trailing metadata
+
+Variants:
+
+- simple
+- result
+- selectable
+- followed
+- voting
+
+---
+
+# 118. ResultRow
+
+- rank
+- flag
+- country
+- entry info
+- points
+- jury/tele optional
+- delta optional
+
+---
+
+# 119. StatusChip
+
+States:
+
+- Required
+- In progress
+- Upcoming
+- Submitted
+- Under review
+- Verified
+- Completed
+- Locked
+- Closed
+- Problem
+- Live
+
+Status always has text.
+
+Never colour-only.
+
+---
+
+# 120. Buttons
+
+Primary  
+Secondary  
+Tertiary  
+Destructive  
+Icon  
+Floating
+
+States:
+
+default  
+pressed  
+loading  
+success  
+disabled
+
+---
+
+# 121. Input
+
+Variants:
+
+- text
+- search
+- textarea
+- numeric
+- select
+- date/time
+- upload
+
+States:
+
+- resting
+- focused
+- filled
+- invalid
+- disabled
+- read-only
+
+---
+
+# 122. Sheet
+
+Detents:
+
+- content
+- medium
+- full
+
+Types:
+
+- detail
+- action
+- filter
+- confirmation
+- settings
+- rules
+
+---
+
+# 123. Toast
+
+Types:
+
+- success
+- info
+- warning
+- error
+- sync
+
+Only one or a very small stack visible.
+
+---
+
+# 124. Receipt
+
+Contains:
+
+- operation
+- status
+- context
+- timestamp
+- ID
+- verification
+- detail link
+
+---
+
+# Part XXVIII
+# Bottom navigation
+
+## 125. Expanded mode
+
+Five items:
+
+Home  
+Explore  
+Participate  
+Results  
+Me
+
+Selected state:
+
+- stronger icon
+- clearer label
+- moving material/highlight
+
+---
+
+# 126. Compact mode
+
+Possible after sustained downward scroll.
+
+Labels may reduce/disappear **only if testing confirms discoverability remains strong**.
+
+Not used with accessibility text configurations where it hurts usability.
+
+---
+
+# 127. Scroll hysteresis
+
+Avoid jitter.
+
+Example concept:
+
+collapse after meaningful sustained downward movement.
+
+expand after shorter upward intent.
+
+Exact values tuned on-device.
+
+---
+
+# 128. Press
+
+Immediate visual feedback:
+
+~80–120 ms.
+
+---
+
+# 129. Long press
+
+Optional premium enhancement.
+
+Small material deformation and haptic.
+
+No essential action depends on it.
+
+---
+
+# 130. Drag selection
+
+Experimental.
+
+Not launch-critical unless extensive testing proves:
+
+- discoverable
+- reliable
+- non-conflicting with scroll
+- accessibility-safe
+
+---
+
+# 131. Interrupted gestures
+
+Every gesture must cleanly reset:
+
+- transform
+- selected state
+- backdrop geometry
+- temporary pointer state
+
+This receives dedicated regression protection.
+
+---
+
+# Part XXIX
+# Motion
+
+## 132. Duration families
+
+Instant:
+
+80–120 ms
+
+Fast:
+
+140–180
+
+Standard:
+
+200–260
+
+Expressive:
+
+300–420
+
+Result/event reveal:
+
+up to ~1500 total sequence
+
+---
+
+# 133. Springs
+
+Tight:
+
+small controls.
+
+Standard:
+
+navigation, sheets, cards.
+
+Soft:
+
+large hero/event transitions.
+
+---
+
+# 134. Press feedback
+
+Cards:
+
+scale roughly .985–.99
+
+Buttons:
+
+roughly .98
+
+Never huge.
+
+---
+
+# 135. Page transitions
+
+Bottom tabs:
+
+subtle crossfade/spatial transition.
+
+Drill-down:
+
+push-like spatial movement.
+
+Back:
+
+reverse.
+
+---
+
+# 136. Hero collapse
+
+Edition artwork:
+
+scroll-linked.
+
+Artwork compresses.
+
+Title transitions into toolbar.
+
+Ambient effect reduces.
+
+No discrete animation that fights scrolling.
+
+---
+
+# 137. Reduced Motion
+
+Replace:
+
+- scale
+- large translation
+- parallax
+
+with:
+
+- opacity
+- instant state
+- small colour transition
+
+Information remains identical.
+
+---
+
+# Part XXX
+# Haptics
+
+## 138. Selection
+
+Used for:
+
+- tab selection
+- segmented control
+- rank adjustment
+
+Light.
+
+---
+
+# 139. Confirmation
+
+Used for:
+
+- saved
+- task completion
+
+Medium.
+
+---
+
+# 140. Success
+
+Used only after server confirms:
+
+- jury
+- confirmation
+- final vote
+- critical submission
+
+---
+
+# 141. Warning
+
+Used for deliberate destructive/critical organizer operations.
+
+---
+
+# 142. Haptic timing
+
+Never fire “success” on tap if success has not happened yet.
+
+Server confirms.
+
+Then UI state + haptic.
+
+---
+
+# Part XXXI
+# Keyboard and forms
+
+## 143. Keyboard rules
+
+When keyboard opens:
+
+- active input remains visible
+- sheet follows visual viewport
+- CTA remains reachable
+- safe area adjusts
+
+---
+
+# 144. Dismissal
+
+A downward gesture while editing first dismisses keyboard where appropriate.
+
+It should not immediately destroy the sheet/workflow.
+
+---
+
+# 145. Disabled controls
+
+Never silently disable critical controls.
+
+Bad:
+
+`Submit` greyed out.
+
+Good:
+
+> **Submit unavailable**
+>
+> Complete all 15 rankings first.
+
+---
+
+# Part XXXII
+# Responsive design
+
+## 146. Small phone
+320–374 px.
+
+- single column
+- 16 px gutters
+- compact typography
+- metadata wraps
+- near-full-screen sheets
+
+---
+
+# 147. Standard phone
+375–430.
+
+Primary reference.
+
+Recommended Figma reference:
+
+~390–402 width.
+
+---
+
+# 148. Large phone
+431–520.
+
+- modestly wider layout
+- occasional compact split content
+- no giant stretched cards
+
+---
+
+# 149. Tablet portrait
+600–900.
+
+Possible two-column layouts:
+
+- journey + actions
+- explore collections
+- organizer summary + details
+
+---
+
+# 150. Tablet landscape
+
+More desktop-like.
+
+Live Mode can use split presentation.
+
+---
+
+# 151. Desktop
+1024+.
+
+Same concepts.
+
+Not separate product.
+
+Possible layout:
+
+```text
+Sidebar | Main Workspace | Context Panel
+```
+
+---
+
+# 152. Wide desktop
+
+Set sensible maximum content widths.
+
+No 1700 px paragraph because the monitor technically permits it.
+
+---
+
+# Part XXXIII
+# Accessibility
+
+## 153. Required baseline
+
+- WCAG AA contrast
+- VoiceOver/screen reader semantics
+- keyboard support
+- large text
+- Reduced Motion
+- Reduced Transparency
+- visible focus
+- 44×44 minimum interaction areas
+- non-colour state communication
+
+---
+
+# 154. Gesture alternatives
+
+Drag:
+
+must have buttons/alternative.
+
+Swipe:
+
+must have alternative.
+
+Long press:
+
+must be optional.
+
+---
+
+# 155. Dynamic updates
+
+Define accessibility live-region behaviour.
+
+Examples:
+
+Draft saved:
+
+silent/polite.
+
+Submission succeeded:
+
+polite.
+
+Critical state changed:
+
+appropriate assertive announcement.
+
+Never cause whole screen to reread.
+
+---
+
+# 156. Reduced Transparency
+
+Glass becomes more opaque.
+
+Hierarchy remains.
+
+---
+
+# Part XXXIV
+# Loading and perceived performance
+
+## 157. Cold start
+
+Brand/shell quickly.
+
+No long splash animation.
+
+---
+
+# 158. Warm start
+
+Render cached Home immediately.
+
+Refresh in background.
+
+---
+
+# 159. Skeletons
+
+Skeleton geometry matches actual component.
+
+Do not reset already rendered cached content to skeleton.
+
+---
+
+# 160. Background refresh
+
+Small:
+
+> Updating…
+
+if needed.
+
+No full-screen loader.
+
+---
+
+# Part XXXV
+# Offline
+
+## 161. Browsing
+
+Use cached content where safe.
+
+Display:
+
+**Offline**
+
+quietly.
+
+---
+
+# 162. Drafts
+
+Allow offline drafts where safe.
+
+Show:
+
+> Saved offline
+
+---
+
+# 163. Final submissions
+
+Require authoritative server acknowledgement.
+
+Do not mark complete offline.
+
+---
+
+# Part XXXVI
+# Multi-device continuity
+
+## 164. Server is canonical
+
+Progress and official state sync across devices.
+
+---
+
+# 165. Draft conflict
+
+Use revision control.
+
+Never blindly overwrite newer draft with stale device state.
+
+---
+
+# Part XXXVII
+# API architecture
+
+## 166. Do not build one massive universal context response
+
+Use lightweight bootstrap + focused projections.
+
+---
+
+# 167. AppBootstrap
+
+Contains:
+
+```text
+user
+memberships
+capabilities
+primary_context
+attention_summary
+server_time
+schema_version
+```
+
+---
+
+# 168. CurrentContest projection
+
+Contains:
+
+- edition
+- phase/experience
+- next event
+- live state
+- result/publication state
+
+---
+# 169. Journey projection
+
+Contains:
+
+```text
+edition_id
+responsibilities[]
+optional_participation[]
+```
+
+---
+
+# 170. Action projection
+
+Action model:
+
+```text
+id
+kind
+actor
+context
+
+state
+action_required
+urgency
+impact
+
+title
+description
+why
+
+opens_at
+deadline
+completed_at
+
+progress
+route
+blocking_reason
+receipt_id
+state_version
+```
+
+---
+
+# 171. Attention projection
+
+Contains:
+
+- critical
+- important
+- updates
+- badge count
+- delivery metadata
+
+---
+
+# 172. Organizer projection
+
+Edition-scoped operational state:
+
+- readiness
+- issues
+- inbox
+- upcoming
+- workflow summaries
+- system state
+
+---
+
+# Part XXXVIII
+# Mutation architecture
+
+## 173. Critical mutation pipeline
+
+```text
+command
+↓
+authentication
+↓
+capability validation
+↓
+canonical-state validation
+↓
+transaction / lock
+↓
+mutation
+↓
+receipt
+↓
+projection recompute
+↓
+realtime invalidation/event
+```
+
+---
+
+# 174. Idempotency
+
+Critical actions require idempotency keys:
+
+- confirmation
+- entry submission
+- jury submission
+- televote
+- publish result
+- critical organizer transitions
+
+Repeated request must not duplicate the operation.
+
+---
+
+# 175. Operation status
+
+Responses should expose:
+
+```text
+operation_id
+receipt_id
+state_version
+server_time
+```
+
+---
+
+# Part XXXIX
+# Time model
+
+## 176. Storage
+
+Canonical timestamps:
+
+UTC.
+
+---
+
+# 177. Official timezone
+
+Edition/show stores official timezone.
+
+---
+
+# 178. Display
+
+Example:
+
+> 20:00 CEST  
+> 21:00 your time
+
+where ambiguity matters.
+
+---
+
+# 179. Countdowns
+
+Use server-relative time offset.
+
+Do not blindly trust a device whose clock thinks it is Tuesday in 2047.
+
+---
+
+# Part XL
+# Realtime
+
+## 180. Appropriate realtime
+
+- Live show state
+- voting open/close
+- action completion
+- organizer issue changes
+- result publication
+
+---
+
+# 181. Avoid realtime everywhere
+
+Normal directories and archive content can use cached queries.
+
+Do not subscribe to static tables for emotional support.
+
+---
+
+# Part XLI
+# Data efficiency and Supabase safety
+
+## 182. Permanent production rule
+
+Automated:
+
+- CI
+- Playwright
+- Browser Audit
+- migration rehearsal
+- preview QA
+- screenshot crawls
+
+must **never** connect to production/hosted Solaris Supabase. CRITICAL INSTRUCTIONS
+
+This is release-blocking.
+
+---
+
+# 183. Query discipline
+
+V3 must avoid:
+
+- repeated static fetches
+- unnecessary polling
+- duplicated queries
+- full-table downloads
+- uncontrolled retries
+- duplicated realtime subscriptions
+
+The project infrastructure rules explicitly require this discipline. CRITICAL INSTRUCTIONS
+
+---
+
+# 184. Projection advantage
+
+A proper Journey projection should prevent five UI components independently loading:
+
+- confirmations
+- jury
+- media
+- entry
+- current edition
+
+for the same display.
+
+---
+
+# Part XLII
+# Search and authorization
+
+## 185. Same permissions everywhere
+
+Search cannot expose anything that direct routing would deny.
+
+Server-side filtering preferred.
+
+---
+
+# Part XLIII
+# PWA lifecycle
+
+## 186. Update available
+
+Show:
+
+> **Solaris update ready**
+
+Do not reload during critical work.
+
+---
+
+# 187. Critical workflow protection
+
+If user is:
+
+- ranking jury
+- editing entry
+- confirming participation
+- operating show controls
+
+service-worker activation must not destroy active state.
+
+---
+
+# Part XLIV
+# Error model
+
+## 188. Error taxonomy
+
+### Connection
+> Couldn't reach Solaris.
+
+### Validation
+> One item needs your attention.
+
+### Permission
+> You don't have access to this action.
+
+### State changed
+> This round has now closed.
+
+### Submission uncertain
+> Checking whether your submission was received…
+
+### Server failure
+> Solaris couldn't complete this action.
+
+---
+
+# 189. Technical diagnostics
+
+Expandable details may include:
+
+- error code
+- operation ID
+- correlation ID
+
+No secrets.
+
+---
+
+# Part XLV
+# Observability
+
+## 190. Important workflows log
+
+- operation ID
+- context
+- capability decision
+- result
+- state version
+- error class
+
+Organizer System Health should differentiate:
+
+- permissions
+- user error
+- stale client
+- API failure
+- storage failure
+- realtime failure
+
+---
+
+# Part XLVI
+# Privacy and retention
+
+## 191. Define lifecycle before launch
+
+For:
+
+- receipts
+- submission history
+- device records
+- organizer logs
+- account memberships
+- notification history
+
+define:
+
+- retention period
+- access scope
+- post-edition access
+- deletion/anonymisation where applicable
+- audit obligations
+
+---
+
+# Part XLVII
+# Figma specification
+
+## 192. Reference mobile frame
+
+Primary:
+
+~390×844 class.
+
+Also validate on:
+
+- small iPhone
+- large iPhone
+
+---
+
+# 193. Mandatory reference screens
+
+1. Home calm
+2. Home action
+3. Home urgent
+4. Home live
+5. Explore
+6. Edition
+7. Participate
+8. Jury
+9. Jury review
+10. Jury receipt
+11. Results
+12. Me
+13. Organizer Overview
+14. Organizer Tasks
+15. Organizer Live
+16. Search
+17. Sheet with keyboard
+18. Error/reconciliation state
+
+---
+
+# 194. Prototype scenarios
+
+### Participant
+Home  
+→ Jury  
+→ ranking  
+→ review  
+→ submit  
+→ receipt  
+→ Home cleared
+
+### Viewer
+Home  
+→ Live  
+→ vote  
+→ receipt
+
+### Explorer
+Explore  
+→ Edition  
+→ Country  
+→ Back
+
+### Organizer
+Overview  
+→ issue  
+→ resolve  
+→ readiness updated
+
+### Failure
+Submit  
+→ connection loss  
+→ checking status  
+→ server confirms  
+→ receipt
+
+---
+
+# Part XLVIII
+# Usability testing
+
+## 195. Test without explanation
+
+Ask users:
+
+- What needs your attention?
+- Where would you submit jury voting?
+- Where would you find an old edition?
+- Where are your receipts?
+- Where would you change notifications?
+- What does this status mean?
+- How would you see tonight’s show?
+
+If the user cannot find it, the interface failed.
+
+Not the human. A revolutionary concept in software.
+
+---
+
+# Part XLIX
+# Performance targets
+
+## 196. Internal targets
+
+| Metric | Target |
+|---|---:|
+| Warm shell perceived render | <500 ms |
+| Input acknowledgement | <100 ms |
+| Tab press acknowledgement | <100 ms |
+| Major animations | ~60 fps |
+| Cached root content | immediate |
+| Layout shift | negligible |
+| Final submit | immediate pending feedback |
+
+Effects may degrade on weaker devices.
+
+Responsiveness wins over blur fidelity.
+
+---
+
+# Part L
+# Release architecture
+
+## 197. No mega-launch
+
+Feature-flag major V3 slices:
+
+- shell
+- Home
+- Participate
+- Explore
+- Results
+- Me
+- Organizer
+
+---
+
+# 198. Rollback
+
+Critical new workflows need a kill switch.
+
+A beautiful broken jury flow is still broken.
+
+---
+
+# Part LI
+# Migration plan
+
+## 199. Phase 0: freeze contracts
+
+Document current:
+
+- routes
+- workflows
+- auth
+- capabilities
+- DB ownership
+- receipts
+- notifications
+- Organizer operations
+
+---
+
+# 200. Phase 1: design foundations
+
+Implement:
+
+- semantic tokens
+- type scale
+- spacing
+- radii
+- surfaces
+- motion primitives
+- haptic abstraction
+- core components
+
+---
+
+# 201. Phase 2: V3 shell
+
+Implement:
+
+- top context
+- bottom navigation
+- safe area
+- modal/sheet stack
+- app resume
+- scroll restoration
+
+Legacy screens may render inside it temporarily.
+
+---
+
+# 202. Phase 3: canonical bootstrap/projections
+
+Add:
+
+- AppBootstrap
+- CurrentContest
+- Actions
+- Journey
+- Attention
+
+Without breaking existing flows.
+
+---
+
+# 203. Phase 4: Home
+
+Replace newsroom-first app Home with:
+
+Now-first stable architecture.
+
+The current Home already contains contest-state and personal-attention pieces, giving V3 a useful migration base.  
+
+---
+
+# 204. Phase 5: Participate
+
+Wrap current participation/task machinery in:
+
+Responsibilities + Actions.
+
+Do not duplicate the existing logic.
+
+---
+
+# 205. Phase 6: critical flows
+
+Rework:
+
+- Confirmation
+- Entry
+- Jury
+- Televote
+
+with:
+
+- receipts
+- idempotency
+- draft versioning
+- uncertainty recovery
+
+---
+
+# 206. Phase 7: Explore
+
+New editorial root.
+
+Then Edition/Country/Show surfaces.
+
+---
+
+# 207. Phase 8: Results
+
+Result-first structure.
+
+Analysis tools move deeper without being removed.
+
+---
+
+# 208. Phase 9: Me
+
+Decompose visible MySolaris responsibilities.
+
+---
+
+# 209. Phase 10: Organizer
+
+New operational shell using existing safe backend operations.
+
+---
+
+# 210. Phase 11: Live
+
+Public Live + Organizer Live.
+
+---
+
+# 211. Phase 12: visual polish
+
+Apply final:
+
+- material
+- motion
+- haptic
+- art direction
+- responsive tuning
+
+Do not leave this whole phase until the end, though. Core components must already contain correct visual behaviour.
+
+This phase is refinement, not “make it pretty now”.
+
+---
+
+# 212. Phase 13: remove duplication
+
+Only after V3 parity:
+
+remove:
+
+- legacy navigation duplication
+- redundant task derivations
+- old app-only layout paths
+- duplicated MySolaris surfaces
+
+---
+
+# Part LII
+# Quality assurance
+
+## 213. Component tests
+
+Every component variant/state.
+
+---
+
+# 214. Contract tests
+
+Canonical:
+
+- State
+- Journey
+- Action
+- Attention
+- capabilities
+
+---
+
+# 215. Workflow tests
+
+- confirmation
+- entry
+- media
+- jury
+- televote
+- results publication
+
+---
+
+# 216. Edge-state tests
+
+- deadline expires while open
+- round closes
+- account suspended
+- user switches account
+- role changes
+- result publishes
+- voting extends
+- stale cache
+- reconnect
+- interrupted submission
+- duplicate operation
+- multi-device draft conflict
+
+---
+
+# 217. Visual goldens
+
+Use a **small, deliberate set** of reference screens.
+
+Do not screenshot the entire multiverse on every commit.
+
+---
+
+# 218. Browser interaction tests
+
+Explicitly test:
+
+- keyboard
+- safe areas
+- sheet drag
+- interrupted gesture
+- tab rapid switching
+- scroll restoration
+- dynamic text
+- offline
+- PWA resume
+
+---
+
+# Part LIII
+# Acceptance criteria
+
+## 219. Home
+
+Pass if:
+
+- most important state visible immediately
+- no more than one dominant action
+- stable mental layout
+- live/deadline states clearly distinguished
+
+---
+
+# 220. Participate
+
+Pass if:
+
+- required responsibilities obvious
+- optional participation separated
+- next required action obvious
+- completed state clear
+
+---
+
+# 221. Critical workflow
+
+Pass if:
+
+- draft survives interruptions
+- server state authoritative
+- success never shown prematurely
+- duplicate submit impossible
+- receipt available
+- ambiguity reconciled
+
+---
+
+# 222. Explore
+
+Pass if:
+
+- current edition easy to find
+- entities clear
+- directory complexity hidden behind hierarchy
+- search effective
+
+---
+
+# 223. Results
+
+Pass if:
+
+- result is the first thing users see
+- deeper tools remain discoverable
+- spoiler protection respected
+
+---
+
+# 224. Me
+
+Pass if:
+
+- user understands identity/delegation
+- history easy to find
+- settings obvious
+- no duplicate task workspace
+
+---
+
+# 225. Organizer
+
+Pass if:
+
+- top problem visible immediately
+- current edition unmistakable
+- dangerous operations clearly scoped
+- workflows usable on phone
+- no desktop-table compression nonsense
+
+---
+
+# Part LIV
+# V3 success metrics
+
+## 226. Product metrics
+
+Measure:
+
+- launch → required action time
+- workflow completion time
+- deadline-related failure rate
+- backtracking
+- failed submissions
+- duplicate incidents
+- organizer resolution time
+- push → completion conversion
+- support questions
+- app performance
+
+The particularly important metric:
+
+> **How often does a user need to hunt manually for a task Solaris already knows exists?**
+
+Target:
+
+**effectively zero.**
+
+---
+
+# Part LV
+# Final release definition
+
+Solaris Studio V3 is ready only when all of the following are true:
+
+### Product
+The five-area mental model is coherent.
+
+### Visual
+V3 clearly looks like a new generation.
+
+### Interaction
+Motion, gestures, keyboard, safe area and haptics feel intentional.
+
+### Accessibility
+No important function relies on motion, colour or gestures alone.
+
+### Data
+Canonical domain state drives all projections.
+
+### Reliability
+Critical submission flows are idempotent and recoverable.
+
+### Cross-device
+Draft conflicts cannot silently destroy work.
+
+### Organizer
+Operational context is always explicit.
+
+### Notifications
+Useful without becoming spam.
+
+### Spoilers
+Respected everywhere.
+
+### Performance
+Smooth on realistic devices.
+
+### Infrastructure
+No uncontrolled production egress and no automated production Supabase testing.
+
+### QA
+Critical workflows and edge states objectively pass.
+
+---
+
+# The intended final feeling
+
+A V3 user should not experience:
+
+> “Solaris has 140 features.”
+
+They should experience:
+
+> **“Solaris always seems to know what I need.”**
+
+A fan should be able to open the app and immediately understand what is happening.
+
+A delegation manager should instantly know what remains unfinished.
+
+An organizer should see the problem that needs intervention before searching for it.
+
+A results nerd can still disappear into voting relationships for three hours if they so desire. We should not deny anyone their particular form of entertainment.
+
+And aesthetically, the old and new systems should not merely differ in polish.
+
+They should differ in **generation**.
+
+Current Solaris:
+
+> capable web product adapted into an app.
+
+Solaris Studio V3:
+
+> **a purpose-built, premium contest operating system with cinematic event moments, restrained everyday UI, strong editorial identity, tactile interactions and an architecture that actually understands the competition it is presenting.**
+
+That is the V3 I would now consider worthy of implementation.
