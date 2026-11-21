@@ -409,7 +409,9 @@ log "PASS: bidirectional NF/Internal/NF/Internal history and review invalidation
 
 log "Published Internal metadata correction and material-change denial"
 exec_sql "insert into public.participants(edition_id,country_id,artist,song,publication_status)
-  values ('$EDITION_ID','$COUNTRY_ID','Internal Switch Artist','Internal Switch Song','published');"
+  values ('$EDITION_ID','$COUNTRY_ID','Internal Switch Artist','Internal Switch Song','published');
+  insert into public.entries(edition_id,country_id,artist,song_title,status)
+  values ('$EDITION_ID','$COUNTRY_ID','Internal Switch Artist','Internal Switch Song','confirmed');"
 apply_governed_response_access true '00000000-0000-4000-8000-00000000e799' 'published-metadata-open' 'Local metadata-only correction'
 # Reconstruct every effective field from authoritative stored rows, then vary
 # only Instagram. No browser snapshot is used for Entry synchronization.

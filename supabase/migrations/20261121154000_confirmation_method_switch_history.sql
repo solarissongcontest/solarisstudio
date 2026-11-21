@@ -87,8 +87,11 @@ begin
     )
     -- A show assignment alone is not a competition lock: the S14 setup
     -- assigns participants to *unpublished* shows before Entry submission.
-    -- Protect public Entry publication itself, a published country record,
-    -- and a participant in an actually published show instead.
+    -- A participation announcement (including legacy participant labels) is
+    -- not an official song. Require material in the canonical Entry before
+    -- treating participant publication as publication of that song. Read only
+    -- persisted state: entry_unknown or omitted payload keys cannot unlock it.
+    -- An actually published show remains a competition lock independently.
     or exists (
       select 1 from public.entries e
       join public.countries c on c.id = e.country_id
@@ -102,7 +105,13 @@ begin
       where p.edition_id = r.edition_id
         and lower(btrim(c.name)) = lower(btrim(existing.country))
         and (
-          p.publication_status = 'published'
+          (p.publication_status = 'published' and exists (
+            select 1 from public.entries official
+            where official.edition_id = p.edition_id
+              and official.country_id = p.country_id
+              and nullif(btrim(official.artist),'') is not null
+              and nullif(btrim(official.song_title),'') is not null
+          ))
           or exists (
             select 1 from public.shows sh
             where sh.id = p.show_id and sh.published

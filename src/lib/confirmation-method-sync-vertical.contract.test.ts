@@ -91,6 +91,10 @@ describe("Confirmation / Entry method transitions and post-review recovery", () 
     expect(migration).toContain("and e.status = 'published'");
     expect(migration).toContain("where sh.id = p.show_id and sh.published");
     expect(migration).toContain("p.publication_status = 'published'");
+    expect(migration).toContain("official.edition_id = p.edition_id");
+    expect(migration).toContain("official.country_id = p.country_id");
+    expect(migration).toContain("nullif(btrim(official.artist),'') is not null");
+    expect(migration).toContain("nullif(btrim(official.song_title),'') is not null");
     expect(migration).toContain("coalesce(nf.results_published, false)");
     expect(migration).toContain("existing.participating is distinct from");
   });
