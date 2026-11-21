@@ -41,6 +41,11 @@ describe("Confirmation / Entry method transitions and post-review recovery", () 
     expect(sync).toContain('status: "publication_locked"');
     expect(sync).toContain('.eq("publication_status", "published")');
     expect(sync).toContain('canonicalGuard.data?.status === "published"');
+    // A published country announcement with no approved song is NOT a
+    // published Entry. First-time acceptance must still be projectable.
+    expect(sync).toContain("const officialEntryAlreadyPresent =");
+    expect(sync).toContain("(publishedParticipant.data?.length ?? 0) > 0 && officialEntryAlreadyPresent");
+    expect(sync).toContain(".select(\"id,source,status,artist,song_title,updated_at\")");
     expect(sync).toContain("governed Organizer correction workflow");
     expect(sync.indexOf("const publishedParticipant =")).toBeLessThan(
       sync.indexOf("const entityLookup ="),
