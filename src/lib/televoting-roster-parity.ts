@@ -7,7 +7,8 @@ export function linkedTelevoteRosterMatches(
 ): boolean {
   const canonical = activeCountryCodes.map((code) => code.trim().toUpperCase());
   const remote = remoteCountryCodes.map((code) => code.trim().toUpperCase());
-  if (canonical.length < 2 || canonical.length !== remote.length) return false;
+  if (canonical.length < 2 || canonical.length !== remote.length ||
+      canonical.some((code) => !code) || remote.some((code) => !code)) return false;
   const expected = new Set(canonical);
   const actual = new Set(remote);
   return expected.size === canonical.length &&
