@@ -104,12 +104,36 @@ export function prefillFromSubmission(
   };
 }
 
+type PrefillSongRow = {
+  id?: string;
+  artist?: string | null;
+  song_title?: string | null;
+  song_url?: string | null;
+  credits?: unknown;
+  preview_start?: string | null;
+  preview_end?: string | null;
+  final_clip_start?: string | null;
+  final_clip_end?: string | null;
+  replacement_video_required?: boolean | null;
+  replacement_video_url?: string | null;
+};
+
+type PrefillSelectionRows = {
+  internal_entries?: PrefillSongRow | null;
+  national_finals?: {
+    pending_winning_entry_id?: string | null;
+    winning_entry_id?: string | null;
+    national_final_entries?: PrefillSongRow[] | null;
+  } | null;
+};
+
 /** Prefill both methods, not only the currently active one. Inactive records
  * remain private historical data and can be restored when editing switches
  * back to that method. */
-export function prefillSelectionSongCache(s: any): SelectionSongCache {
+export function prefillSelectionSongCache(input: unknown): SelectionSongCache {
+  const s = input as PrefillSelectionRows | null | undefined;
   const cache: SelectionSongCache = {};
-  const songFrom = (row: any): SelectionSong => ({
+  const songFrom = (row: PrefillSongRow): SelectionSong => ({
     ...emptySelectionSong(),
     artist: row?.artist ?? "",
     song_title: row?.song_title ?? "",
