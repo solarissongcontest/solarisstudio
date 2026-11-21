@@ -223,6 +223,25 @@ begin
     );
   end if;
 
+  -- Old Organizer rows may identify the voting country by voter_id or
+  -- contest_entity_id alone. The legacy delegate checks only the country
+  -- column, so close that historical cross-method identity gap here under
+  -- the same country lock, after durable idempotent replay has been handled.
+  if exists (
+    select 1 from public.jury_votes j
+    where j.show_id=_show_id and j.ballot_submission_id is null
+      and (
+        j.voter_country_id=v_account.country_id
+        or exists(select 1 from public.voters v
+          where v.id=j.voter_id and v.country_id=v_account.country_id)
+        or exists(select 1 from public.contest_entities ce
+          where ce.id=j.voter_entity_id and ce.country_id=v_account.country_id)
+      )
+  ) then
+    raise exception 'Organizer Jury scores already exist for this country; cannot submit a second ballot'
+      using errcode='23505';
+  end if;
+
   v_ballot_id := public.submit_country_jury_ballot(_show_id, _entries, _preflight_id);
   if v_ballot_id is null then
     raise exception 'Jury submission returned no ballot id' using errcode = '55000';
