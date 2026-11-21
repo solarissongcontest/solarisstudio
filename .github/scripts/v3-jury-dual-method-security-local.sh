@@ -3,6 +3,9 @@
 log "Dual-method SSC22-shaped acceptance in isolated local Supabase"
 DUAL_SHOW='00000000-0000-4000-8000-00000000a722'
 MANUAL_COUNTRY='00000000-0000-4000-8000-00000000c720'
+# The earlier synthetic security ballot has completed. An edition permits
+# only one open jury window, so close it before opening the new isolated show.
+db_exec "update public.jury_voting_windows set status='closed' where show_id='$SHOW_ID';"
 db_exec "
 insert into public.countries(id,name,short_code)
 select ('00000000-0000-4000-8000-'||lpad(to_hex(50976+n),12,'0'))::uuid,
