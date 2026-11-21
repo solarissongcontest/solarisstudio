@@ -66,7 +66,13 @@ PYOWNER
   [[ "$(operator_state_digest)" == "$owner_after" ]] || { echo 'Duplicate owner install changed schema/data'; exit 1; }
 }
 operator_apply docs/v3/recovery-candidates/forward-only-s13-foundation.sql
-operator_apply docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql
+# Rehearse the REAL production frontier: these two S14 effects were installed
+# separately, so the residual candidate must preserve them byte-for-byte.
+# All operations below use the network-none, owned PostgreSQL fixture only.
+operator_sql -f - < supabase/migrations/20261019112200_v3_s14_final_results_readiness_hardening.sql
+operator_sql -f - < supabase/migrations/20261021161000_v3_s14_task_reconciliation_service_boundary.sql
+node scripts/stage-v3-s14-archive-residual-local.mjs > /tmp/s14-residual-local.sql
+operator_apply /tmp/s14-residual-local.sql
 # Restore already-merged Confirmation command authority on the SAME observed-owner
 # local database. Source-only missing-parent reconstruction must first match
 # fresh hosted catalog fingerprints; an unknown function cannot be invented.

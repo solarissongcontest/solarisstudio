@@ -1,0 +1,62 @@
+name: V3 S14 residual Archive source-only safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v3-s14-archive-residual-source.yml"
+      - "scripts/stage-v3-s14-archive-residual-local.mjs"
+      - "scripts/stage-v3-s14-archive-residual-local.test.mjs"
+      - "docs/v3/recovery-candidates/forward-only-s14-archive-integrated-local.sql"
+      - "supabase/migrations/20261019112200_v3_s14_final_results_readiness_hardening.sql"
+      - "supabase/migrations/20261021161000_v3_s14_task_reconciliation_service_boundary.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-only:
+    name: Pin 12 source stages, derive 10 residual (NO DB)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOLARIS_VERIFICATION_TARGET: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_REF: local
+    steps:
+      - name: Check out exact reviewed SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Refuse hosted credentials and stale source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$REVIEWED_SHA" ]]
+          [[ "$SOLARIS_VERIFICATION_TARGET" == local ]]
+          [[ "$SUPABASE_URL" == http://127.0.0.1:54321 ]]
+          for key in DATABASE_URL POSTGRES_URL SUPABASE_DB_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_ACCESS_TOKEN PGHOST PGHOSTADDR PGSERVICE PGSERVICEFILE PGPORT DOCKER_HOST; do
+            [[ -z "${!key:-}" ]] || { echo "::error::Remote database connection setting $key"; exit 1; }
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Source integrity and final-body non-downgrade test
+        run: node --test scripts/stage-v3-s14-archive-residual-local.test.mjs
+      - name: Generate LOCAL-ONLY candidate and verify intact transaction envelope
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/stage-v3-s14-archive-residual-local.mjs > "$RUNNER_TEMP/s14-residual-local.sql"
+          grep -Fq 'S14 residual BLOCKED: final-results readiness effect mismatch' "$RUNNER_TEMP/s14-residual-local.sql"
+          grep -Fq 'S14 residual BLOCKED: existing task service boundary mismatch' "$RUNNER_TEMP/s14-residual-local.sql"
+          [[ "$(grep -c '^-- Canonical source effects:' "$RUNNER_TEMP/s14-residual-local.sql")" == 10 ]]
+          [[ "$(grep -ci '^commit;' "$RUNNER_TEMP/s14-residual-local.sql")" == 1 ]]
+          sha256sum "$RUNNER_TEMP/s14-residual-local.sql"
+          echo "SOURCE-ONLY PASS. No database connection, no SQL installation."
+          echo "Not a recovered-production clone, PG parser execution, historical ledger repair, or S14 launch certificate."
